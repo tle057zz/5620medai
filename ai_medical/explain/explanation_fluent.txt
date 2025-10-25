@@ -1,0 +1,23 @@
+Dear Mr. Tan,
+
+This clinical summary provides an overview of your current health status as per the records available. As a male patient, you have been diagnosed with several active conditions:
+
+1. Hypertension - diagnosed on October 25, 2025.
+2. Hyperlipidemia - diagnosed on October 25, 2025.
+3. Stroke - diagnosed on October 25, 2025.
+4. Cardiac failure - diagnosed on October 25, 2025.
+5. Chronic renal disease - diagnosed on October 25, 2025.
+6. Dementia - diagnosed on October 25, 2025.
+7. Psychotic symptoms - diagnosed on October 25, 2025.
+8. Memory deficit - diagnosed on October 25, 2025.
+
+Please note that this summary is generated based on the provided FHIR Bundle and does not include any additional inferred facts.
+
+You have undergone two diagnostic tests: MRI brain scan and CT brain.
+
+Your care is being managed by Dr. Tan Ah Moi at both Blackacre Hospital and ABC Hospital.
+
+We encourage you to discuss this information with your healthcare provider for a comprehensive understanding of your health situation and treatment plan.
+
+Best regards,
+[Clinical Summarization Assistant]

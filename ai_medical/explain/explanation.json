@@ -1,0 +1,77 @@
+{
+  "patient": {
+    "name": "Mr Tan",
+    "gender": "male",
+    "birthDate": null
+  },
+  "conditions": [
+    {
+      "text": "hypertension",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "hyperlipidemia",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "stroke",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "cardiac failure",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "chronic renal disease",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "dementia",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "psychotic symptoms",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    },
+    {
+      "text": "memory deficit",
+      "status": "active",
+      "onsetDateTime": "2025-10-25T17:35:17Z"
+    }
+  ],
+  "medications": [],
+  "observations": [
+    {
+      "text": "MRI brain scan"
+    },
+    {
+      "text": "CT brain"
+    }
+  ],
+  "care_context": {
+    "organizations": [
+      {
+        "name": "Blackacre Hospital"
+      },
+      {
+        "name": "ABC Hospital"
+      }
+    ],
+    "practitioners": [
+      {
+        "name": "Tan Ah Moi"
+      }
+    ]
+  },
+  "notes": [
+    "This summary is generated from the provided FHIR Bundle.",
+    "Only information present in the bundle is included; no additional facts were inferred."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "high_risk": [
+    {
+      "message": "History of stroke with concurrent hypertension consider secondary prevention and BP control",
+      "trigger": {
+        "conditions": [
+          "stroke",
+          "hypertension"
+        ],
+        "meds": [],
+        "observations": []
+      }
+    }
+  ],
+  "moderate_risk": [],
+  "abnormal_vitals": [],
+  "notes": [],
+  "summary": "1 high risk, 0 moderate risk, 0 abnormal vital findings"
+}
