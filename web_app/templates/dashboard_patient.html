@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Dashboard - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-person-heart"></i> Patient Dashboard</h2>
+                <p class="text-muted">Welcome back, {{ user.get_display_name() }}</p>
+            </div>
+            <div>
+                <span class="badge bg-info fs-6">MRN: {{ user.medical_record_number }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Patient Info Card -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> My Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ user.get_display_name() }}</p>
+                        <p><strong>Date of Birth:</strong> {{ user.date_of_birth }}</p>
+                        <p><strong>Email:</strong> {{ user.email }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Medical Record Number:</strong> {{ user.medical_record_number }}</p>
+                        <p><strong>Account Status:</strong> <span class="badge bg-success">Active</span></p>
+                        <p><strong>Last Visit:</strong> January 15, 2025</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-file-earmark-medical display-4 text-primary"></i>
+                <h3 class="mt-2">8</h3>
+                <p class="text-muted mb-0">Medical Reports</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-capsule display-4 text-success"></i>
+                <h3 class="mt-2">3</h3>
+                <p class="text-muted mb-0">Active Medications</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check display-4 text-warning"></i>
+                <h3 class="mt-2">2</h3>
+                <p class="text-muted mb-0">Upcoming Appointments</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Medical Records -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Recent Medical Records</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Document Type</th>
+                                <th>Doctor</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Jan 15, 2025</td>
+                                <td><i class="bi bi-file-earmark-text"></i> Medical Report</td>
+                                <td>Dr. Sarah Smith</td>
+                                <td><span class="badge bg-success">Processed</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Jan 10, 2025</td>
+                                <td><i class="bi bi-heart-pulse"></i> Lab Results</td>
+                                <td>Dr. Michael Jones</td>
+                                <td><span class="badge bg-success">Processed</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Dec 28, 2024</td>
+                                <td><i class="bi bi-camera"></i> Imaging Report</td>
+                                <td>Dr. Lisa Chen</td>
+                                <td><span class="badge bg-success">Processed</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Health Summary -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-capsule"></i> Current Medications</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>Atorvastatin</strong> - 20mg daily
+                        <br><small class="text-muted">For cholesterol management</small>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Metformin</strong> - 500mg twice daily
+                        <br><small class="text-muted">For type 2 diabetes</small>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Aspirin</strong> - 81mg daily
+                        <br><small class="text-muted">For cardiovascular protection</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-heart-pulse"></i> Health Conditions</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <span class="badge bg-danger">Active</span> Hypertension
+                    </li>
+                    <li class="list-group-item">
+                        <span class="badge bg-danger">Active</span> Type 2 Diabetes
+                    </li>
+                    <li class="list-group-item">
+                        <span class="badge bg-warning">Monitoring</span> High Cholesterol
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

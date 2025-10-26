@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-lg mt-5">
+            <div class="card-header bg-primary text-white text-center py-4">
+                <h3><i class="bi bi-heart-pulse-fill"></i> Clinical AI System</h3>
+                <p class="mb-0">Secure Medical Data Processing</p>
+            </div>
+            
+            <div class="card-body p-5">
+                <h4 class="text-center mb-4">Sign In</h4>
+                
+                <form method="POST" action="{{ url_for('login') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="bi bi-person"></i> Username
+                        </label>
+                        {{ form.username(class="form-control form-control-lg") }}
+                        {% if form.username.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.username.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="bi bi-lock"></i> Password
+                        </label>
+                        {{ form.password(class="form-control form-control-lg") }}
+                        {% if form.password.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.password.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        {{ form.remember_me(class="form-check-input") }}
+                        <label class="form-check-label" for="remember_me">
+                            Remember me
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <small class="text-muted">
+                        <a href="#">Forgot Password?</a> | 
+                        <a href="#">Contact Support</a>
+                    </small>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light py-3">
+                <div class="accordion" id="credentialsAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#demoCredentials">
+                                <i class="bi bi-info-circle"></i> Demo Credentials
+                            </button>
+                        </h2>
+                        <div id="demoCredentials" class="accordion-collapse collapse" 
+                             data-bs-parent="#credentialsAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Password for all users:</strong> <code>password123</code></p>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Role</th>
+                                                <th>Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><span class="badge bg-success">Doctor</span></td>
+                                                <td><code>dr.smith</code></td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-success">Doctor</span></td>
+                                                <td><code>dr.jones</code></td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info">Patient</span></td>
+                                                <td><code>patient1</code></td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-danger">Admin</span></td>
+                                                <td><code>admin</code></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

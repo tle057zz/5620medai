@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="bi bi-gear-fill"></i> System Administration</h2>
+        <p class="text-muted">Manage users, monitor system, and configure settings</p>
+    </div>
+</div>
+
+<!-- System Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-people display-4 text-primary"></i>
+                <h3 class="mt-2">{{ all_users|length }}</h3>
+                <p class="text-muted mb-0">Total Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-file-earmark-medical display-4 text-success"></i>
+                <h3 class="mt-2">342</h3>
+                <p class="text-muted mb-0">Documents Processed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-cpu display-4 text-info"></i>
+                <h3 class="mt-2">98%</h3>
+                <p class="text-muted mb-0">AI Pipeline Uptime</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="bi bi-hdd display-4 text-warning"></i>
+                <h3 class="mt-2">2.4GB</h3>
+                <p class="text-muted mb-0">Storage Used</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-people"></i> User Management</h5>
+                    <button class="btn btn-light btn-sm">
+                        <i class="bi bi-plus-circle"></i> Add New User
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_item in all_users %}
+                            <tr>
+                                <td><code>{{ user_item.username }}</code></td>
+                                <td>{{ user_item.get_display_name() }}</td>
+                                <td>{{ user_item.email }}</td>
+                                <td>
+                                    {% if user_item.role == 'doctor' %}
+                                        <span class="badge bg-success">Doctor</span>
+                                    {% elif user_item.role == 'patient' %}
+                                        <span class="badge bg-info">Patient</span>
+                                    {% elif user_item.role == 'admin' %}
+                                        <span class="badge bg-danger">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-activity"></i> AI Pipeline Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>OCR Service</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>NER Engine</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Entity Linking</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>FHIR Mapper</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Safety Checker</span>
+                        <span class="badge bg-success">Running</span>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> System Logs</h5>
+            </div>
+            <div class="card-body">
+                <div class="log-container" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                    <div class="mb-1"><span class="text-success">[INFO]</span> User dr.smith logged in</div>
+                    <div class="mb-1"><span class="text-success">[INFO]</span> Document processed successfully</div>
+                    <div class="mb-1"><span class="text-warning">[WARN]</span> High memory usage detected</div>
+                    <div class="mb-1"><span class="text-success">[INFO]</span> FHIR bundle created</div>
+                    <div class="mb-1"><span class="text-success">[INFO]</span> Safety check completed</div>
+                    <div class="mb-1"><span class="text-success">[INFO]</span> User patient1 accessed records</div>
+                    <div class="mb-1"><span class="text-danger">[ERROR]</span> OCR timeout (recovered)</div>
+                    <div class="mb-1"><span class="text-success">[INFO]</span> System backup completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

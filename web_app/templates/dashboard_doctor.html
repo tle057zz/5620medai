@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Dashboard - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-heart-pulse"></i> Doctor Dashboard</h2>
+                <p class="text-muted">Welcome back, {{ user.get_display_name() }}</p>
+            </div>
+            <div>
+                <span class="badge bg-success fs-6">{{ user.specialty }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-file-earmark-medical display-4 text-primary"></i>
+                <h3 class="mt-2">24</h3>
+                <p class="text-muted mb-0">Pending Reviews</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-people display-4 text-success"></i>
+                <h3 class="mt-2">156</h3>
+                <p class="text-muted mb-0">Active Patients</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="bi bi-exclamation-triangle display-4 text-warning"></i>
+                <h3 class="mt-2">3</h3>
+                <p class="text-muted mb-0">Safety Alerts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-cpu display-4 text-info"></i>
+                <h3 class="mt-2">89</h3>
+                <p class="text-muted mb-0">AI Analyses</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Upload Medical Document</h5>
+            </div>
+            <div class="card-body">
+                <p>Upload and process medical documents through our AI pipeline:</p>
+                <ul>
+                    <li>OCR text extraction</li>
+                    <li>Clinical entity recognition</li>
+                    <li>FHIR-compliant data mapping</li>
+                    <li>Safety risk analysis</li>
+                </ul>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-cloud-upload"></i> Upload Document
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-search"></i> Search Patient Records</h5>
+            </div>
+            <div class="card-body">
+                <p>Search and review patient medical records:</p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" placeholder="Search by name or MRN...">
+                    <button class="btn btn-success" type="button">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <a href="#" class="btn btn-outline-success">
+                    <i class="bi bi-list-ul"></i> View All Patients
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activities</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Patient</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>10:30 AM</td>
+                                <td>John Doe (MRN-001234)</td>
+                                <td>Medical Report Processed</td>
+                                <td><span class="badge bg-success">Complete</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>9:15 AM</td>
+                                <td>Jane Wilson (MRN-005678)</td>
+                                <td>Safety Alert Generated</td>
+                                <td><span class="badge bg-warning">Review</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Yesterday</td>
+                                <td>Robert Taylor (MRN-009876)</td>
+                                <td>Lab Results Analyzed</td>
+                                <td><span class="badge bg-success">Complete</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-upload"></i> Upload Medical Document</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Patient MRN</label>
+                        <input type="text" class="form-control" placeholder="e.g., MRN-001234">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Document Type</label>
+                        <select class="form-select">
+                            <option>Medical Report</option>
+                            <option>Lab Results</option>
+                            <option>Imaging Report</option>
+                            <option>Prescription</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Upload File</label>
+                        <input type="file" class="form-control" accept=".pdf,.jpg,.png">
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        The AI pipeline will automatically process this document through 7 stages.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">
+                    <i class="bi bi-cpu"></i> Process with AI
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

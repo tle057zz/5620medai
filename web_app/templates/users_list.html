@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-people"></i> User Management</h2>
+                <p class="text-muted">Manage system users and access control</p>
+            </div>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Add New User
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- User Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-hospital display-4 text-success"></i>
+                <h3 class="mt-2">{{ users|selectattr('role', 'equalto', 'doctor')|list|length }}</h3>
+                <p class="text-muted mb-0">Doctors</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-person-heart display-4 text-info"></i>
+                <h3 class="mt-2">{{ users|selectattr('role', 'equalto', 'patient')|list|length }}</h3>
+                <p class="text-muted mb-0">Patients</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <i class="bi bi-gear display-4 text-danger"></i>
+                <h3 class="mt-2">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</h3>
+                <p class="text-muted mb-0">Administrators</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-table"></i> All Users</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Additional Info</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td><code>{{ user.id }}</code></td>
+                                <td><strong>{{ user.username }}</strong></td>
+                                <td>{{ user.get_display_name() }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.role == 'doctor' %}
+                                        <span class="badge bg-success">Doctor</span>
+                                    {% elif user.role == 'patient' %}
+                                        <span class="badge bg-info">Patient</span>
+                                    {% elif user.role == 'admin' %}
+                                        <span class="badge bg-danger">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.role == 'doctor' %}
+                                        <small>{{ user.specialty }}</small><br>
+                                        <small class="text-muted">License: {{ user.license_number }}</small>
+                                    {% elif user.role == 'patient' %}
+                                        <small>MRN: {{ user.medical_record_number }}</small><br>
+                                        <small class="text-muted">DOB: {{ user.date_of_birth }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
