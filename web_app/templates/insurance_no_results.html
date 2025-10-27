@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}No Insurance Quotes Found{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-lg">
+                <div class="card-header bg-warning text-dark">
+                    <h3><i class="fas fa-exclamation-triangle"></i> No Suitable Products Found</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="my-5">
+                        <i class="fas fa-search fa-5x text-muted mb-4"></i>
+                        <h4>We couldn't find insurance products matching your profile</h4>
+                        <p class="text-muted">
+                            Based on your health data and requirements, our AI system could not identify suitable insurance options at this time.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-info text-left">
+                        <h5><i class="fas fa-info-circle"></i> What You Can Do:</h5>
+                        <ul>
+                            <li><strong>Consult a Human Advisor:</strong> Our insurance specialists can help you find customized solutions.</li>
+                            <li><strong>Update Your Information:</strong> Review and update your health data or financial details.</li>
+                            <li><strong>Save Your Request:</strong> Your information has been saved as Request ID: <code>{{ quote_request.request_id }}</code></li>
+                            <li><strong>Try Again Later:</strong> New insurance products may become available in the future.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Request Details Summary -->
+                    <div class="card mt-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Your Request Summary</h5>
+                        </div>
+                        <div class="card-body text-left">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Request ID:</strong> {{ quote_request.request_id }}</p>
+                                    <p><strong>Status:</strong> <span class="badge badge-warning">No Results</span></p>
+                                    <p><strong>Submitted:</strong> {{ quote_request.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Annual Income:</strong> ${{ "{:,}".format(quote_request.income_details.annual_income) }}</p>
+                                    <p><strong>Employment:</strong> {{ quote_request.income_details.employment_status|title }}</p>
+                                    <p><strong>Health Conditions:</strong> {{ quote_request.health_data.conditions|length }} listed</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-5">
+                        <a href="mailto:advisor@healthcare.com?subject=Insurance Quote Request {{ quote_request.request_id }}" 
+                           class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-md"></i> Contact Human Advisor
+                        </a>
+                        <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-edit"></i> Update Information & Retry
+                        </a>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-home"></i> Back to Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Additional Help -->
+                    <div class="mt-5 p-4 bg-light rounded">
+                        <h6><i class="fas fa-question-circle"></i> Why might this happen?</h6>
+                        <p class="text-muted mb-0">
+                            Several factors can affect insurance eligibility, including pre-existing conditions, 
+                            high-risk health factors, or income constraints. Our human advisors can help explore 
+                            alternative options or specialized insurance programs that may not be in our automated system.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

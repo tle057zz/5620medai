@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Cost Breakdown - {{quote.product.name}}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-info text-white">
+                    <h3><i class="fas fa-chart-bar"></i> Detailed Cost Breakdown</h3>
+                    <p class="mb-0">{{ quote.product.name }} by {{ quote.product.provider }}</p>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('view_insurance_quotes', request_id=quote_request.request_id) }}" class="btn btn-secondary mb-4">
+                        <i class="fas fa-arrow-left"></i> Back to All Quotes
+                    </a>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Cost Simulation:</strong> 
+                        See projected costs across different usage scenarios to help you plan your budget.
+                    </div>
+
+                    <!-- Scenario Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="scenarioTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="minimal-tab" data-toggle="tab" href="#minimal" role="tab">
+                                Minimal Usage
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="typical-tab" data-toggle="tab" href="#typical" role="tab">
+                                Typical Usage
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="heavy-tab" data-toggle="tab" href="#heavy" role="tab">
+                                Heavy Usage
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="catastrophic-tab" data-toggle="tab" href="#catastrophic" role="tab">
+                                Catastrophic
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="scenarioTabContent">
+                        {% for scenario_name, scenario_data in cost_scenarios.items() %}
+                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                             id="{{ scenario_name }}" role="tabpanel">
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <div class="card border-primary">
+                                        <div class="card-body text-center">
+                                            <h4>${{ scenario_data.breakdown.total_annual_cost }}</h4>
+                                            <p class="text-muted mb-0">Total Annual Cost</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-success">
+                                        <div class="card-body text-center">
+                                            <h4>${{ scenario_data.breakdown.annual_premium }}</h4>
+                                            <p class="text-muted mb-0">Annual Premium</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-warning">
+                                        <div class="card-body text-center">
+                                            <h4>${{ scenario_data.breakdown.estimated_oop }}</h4>
+                                            <p class="text-muted mb-0">Estimated Out-of-Pocket</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4>Usage Details</h4>
+                            <table class="table table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Service</th>
+                                        <th>Count</th>
+                                        <th>Cost Per Visit</th>
+                                        <th>Estimated Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Doctor Visits</td>
+                                        <td>{{ scenario_data.usage_details.doctor_visits.count }}</td>
+                                        <td>${{ scenario_data.usage_details.doctor_visits.cost_per_visit }}</td>
+                                        <td>${{ scenario_data.usage_details.doctor_visits.total }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Specialist Visits</td>
+                                        <td>{{ scenario_data.usage_details.specialist_visits.count }}</td>
+                                        <td>${{ scenario_data.usage_details.specialist_visits.cost_per_visit }}</td>
+                                        <td>${{ scenario_data.usage_details.specialist_visits.total }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Emergency Room Visits</td>
+                                        <td>{{ scenario_data.usage_details.er_visits.count }}</td>
+                                        <td>-</td>
+                                        <td>${{ scenario_data.usage_details.er_visits.estimated_cost }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Hospital Days</td>
+                                        <td>{{ scenario_data.usage_details.hospital_days.count }}</td>
+                                        <td>-</td>
+                                        <td>${{ scenario_data.usage_details.hospital_days.estimated_cost }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Prescriptions</td>
+                                        <td>{{ scenario_data.usage_details.prescriptions.count }}</td>
+                                        <td>~$25</td>
+                                        <td>${{ scenario_data.usage_details.prescriptions.estimated_cost }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Lab Tests</td>
+                                        <td>{{ scenario_data.usage_details.lab_tests.count }}</td>
+                                        <td>${{ scenario_data.usage_details.lab_tests.cost_per_test }}</td>
+                                        <td>${{ scenario_data.usage_details.lab_tests.total }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <h4 class="mt-4">Cost Breakdown Explanation</h4>
+                            <div class="card">
+                                <div class="card-body">
+                                    <p><strong>Monthly Premium:</strong> ${{ scenario_data.breakdown.monthly_premium }} × 12 months = ${{ scenario_data.breakdown.annual_premium }}</p>
+                                    <p><strong>Deductible:</strong> ${{ scenario_data.breakdown.deductible }} (you pay this before insurance kicks in)</p>
+                                    <p><strong>Estimated Out-of-Pocket:</strong> ${{ scenario_data.breakdown.estimated_oop }} (based on {{ scenario_name }} usage)</p>
+                                    <p><strong>Max Out-of-Pocket:</strong> ${{ scenario_data.breakdown.max_out_of_pocket }} (maximum you'll pay in a year)</p>
+                                    <hr>
+                                    <h5>Total Annual Cost: ${{ scenario_data.breakdown.total_annual_cost }}</h5>
+                                    <p class="text-muted">This is what you can expect to pay in total for a {{ scenario_name }} usage year.</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-4">
+                        <h4>Compare Across Scenarios</h4>
+                        <canvas id="costChart" width="400" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Create chart comparing all scenarios
+const ctx = document.getElementById('costChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Minimal', 'Typical', 'Heavy', 'Catastrophic'],
+        datasets: [{
+            label: 'Total Annual Cost',
+            data: [
+                {{ cost_scenarios.minimal.breakdown.total_annual_cost }},
+                {{ cost_scenarios.typical.breakdown.total_annual_cost }},
+                {{ cost_scenarios.heavy.breakdown.total_annual_cost }},
+                {{ cost_scenarios.catastrophic.breakdown.total_annual_cost }}
+            ],
+            backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545']
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+<style>
+.nav-tabs .nav-link {
+    color: #495057;
+}
+.nav-tabs .nav-link.active {
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+

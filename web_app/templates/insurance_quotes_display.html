@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}Insurance Quotes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-success text-white">
+                    <h3><i class="fas fa-check-circle"></i> Your Personalized Insurance Quotes</h3>
+                    <p class="mb-0">Request ID: {{ quote_request.request_id }} | Generated: {{ quote_request.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <i class="fas fa-info-circle"></i> We found <strong>{{ quotes|length }}</strong> insurance products that match your profile. 
+                        Quotes are ranked by overall suitability, cost, and coverage.
+                    </div>
+
+    <!-- Action Buttons -->
+    <div class="mb-4">
+        <a href="{{ url_for('insurance_compare', request_id=quote_request.request_id) }}" 
+           class="btn btn-success">
+            <i class="fas fa-exchange-alt"></i> Compare Quotes
+        </a>
+        <a href="{{ url_for('export_insurance_pdf', request_id=quote_request.request_id) }}" 
+           class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Export as PDF
+        </a>
+        <a href="{{ url_for('download_insurance_quotes', request_id=quote_request.request_id) }}" 
+           class="btn btn-primary" download="insurance_quotes.json">
+            <i class="fas fa-download"></i> Download JSON
+        </a>
+        {% if current_user.role == 'patient' %}
+        <form action="{{ url_for('share_with_doctor', request_id=quote_request.request_id) }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn btn-info" {% if quote_request.shared_with_doctor %}disabled{% endif %}>
+                <i class="fas fa-user-md"></i> 
+                {% if quote_request.shared_with_doctor %}Shared with Doctor{% else %}Share with Doctor{% endif %}
+            </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-secondary">
+            <i class="fas fa-history"></i> View History
+        </a>
+        <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-outline-primary">
+            <i class="fas fa-redo"></i> Request New Quote
+        </a>
+    </div>
+
+                    <!-- AI-Extracted Profile Summary (NEW!) -->
+                    <div class="card border-info mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-robot"></i> AI-Extracted Profile Summary
+                                <span class="badge bg-light text-dark">Auto-Filled Data</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Health Data Column -->
+                                <div class="col-md-6">
+                                    <h6 class="text-info"><i class="fas fa-heartbeat"></i> Health Data</h6>
+                                    <table class="table table-sm table-bordered">
+                                        <tbody>
+                                            {% if quote_request.health_data.conditions %}
+                                            <tr>
+                                                <th style="width: 40%;">Current Conditions</th>
+                                                <td>
+                                                    {% for condition in quote_request.health_data.conditions %}
+                                                    <span class="badge bg-warning text-dark me-1">{{ condition }}</span>
+                                                    {% endfor %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.health_data.medications %}
+                                            <tr>
+                                                <th>Current Medications</th>
+                                                <td>
+                                                    {% for med in quote_request.health_data.medications %}
+                                                    <span class="badge bg-primary me-1">{{ med }}</span>
+                                                    {% endfor %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.health_data.bmi %}
+                                            <tr>
+                                                <th>BMI</th>
+                                                <td><strong>{{ quote_request.health_data.bmi }}</strong></td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.health_data.blood_pressure %}
+                                            <tr>
+                                                <th>Blood Pressure</th>
+                                                <td><strong>{{ quote_request.health_data.blood_pressure }}</strong></td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.health_data.glucose %}
+                                            <tr>
+                                                <th>Blood Glucose</th>
+                                                <td><strong>{{ quote_request.health_data.glucose }}</strong></td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.health_data.cholesterol %}
+                                            <tr>
+                                                <th>Cholesterol</th>
+                                                <td><strong>{{ quote_request.health_data.cholesterol }}</strong></td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            <tr>
+                                                <th>Smoking Status</th>
+                                                <td>{{ quote_request.health_data.smoking_status|replace('_', ' ')|title }}</td>
+                                            </tr>
+                                            
+                                            <tr>
+                                                <th>Alcohol Consumption</th>
+                                                <td>{{ quote_request.health_data.alcohol_consumption|replace('_', ' ')|title }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Medical History & Income Column -->
+                                <div class="col-md-6">
+                                    <h6 class="text-info"><i class="fas fa-history"></i> Medical History</h6>
+                                    <table class="table table-sm table-bordered">
+                                        <tbody>
+                                            {% if quote_request.medical_history.past_conditions %}
+                                            <tr>
+                                                <th style="width: 40%;">Past Conditions</th>
+                                                <td>
+                                                    {% for condition in quote_request.medical_history.past_conditions %}
+                                                    <span class="badge bg-secondary me-1">{{ condition }}</span>
+                                                    {% endfor %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.medical_history.surgeries %}
+                                            <tr>
+                                                <th>Past Surgeries</th>
+                                                <td>{{ ', '.join(quote_request.medical_history.surgeries) }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.medical_history.hospitalizations %}
+                                            <tr>
+                                                <th>Hospitalizations</th>
+                                                <td>{{ ', '.join(quote_request.medical_history.hospitalizations) }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% if quote_request.medical_history.family_history %}
+                                            <tr>
+                                                <th>Family History</th>
+                                                <td>{{ ', '.join(quote_request.medical_history.family_history) }}</td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                    
+                                    <h6 class="text-info mt-3"><i class="fas fa-dollar-sign"></i> Income Details</h6>
+                                    <table class="table table-sm table-bordered">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 40%;">Annual Income</th>
+                                                <td><strong>${{ '{:,.2f}'.format(quote_request.income_details.annual_income) }}</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Employment Status</th>
+                                                <td>{{ quote_request.income_details.employment_status|replace('_', ' ')|title }}</td>
+                                            </tr>
+                                            {% if quote_request.income_details.occupation %}
+                                            <tr>
+                                                <th>Occupation</th>
+                                                <td>{{ quote_request.income_details.occupation }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            <tr>
+                                                <th>Dependents</th>
+                                                <td>{{ quote_request.income_details.dependents }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3 mb-0">
+                                <i class="fas fa-lightbulb"></i> <strong>Note:</strong> This data was 
+                                {% if session.get('document_data') and session.get('document_data').get('success') %}
+                                <span class="badge bg-success">automatically extracted from your uploaded document</span> using our AI medical pipeline (OCR → NER → Entity Linking).
+                                {% else %}
+                                manually entered by you.
+                                {% endif %}
+                                The insurance quotes below are tailored based on this profile.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quotes Display -->
+                    {% for quote in quotes %}
+                    <div class="card mb-4 quote-card">
+                        <div class="card-header bg-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h4 class="mb-0">
+                                        <span class="badge badge-primary">Rank #{{ loop.index }}</span>
+                                        {{ quote.product.name }}
+                                    </h4>
+                                    <small class="text-muted">{{ quote.product.provider }} | {{ quote.product.plan_type }} Plan</small>
+                                </div>
+                                <div class="col-md-4 text-right">
+                                    <h5 class="mb-0">
+                                        <span class="badge badge-success score-badge">Overall Score: {{ quote.overall_score }}/100</span>
+                                    </h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Score Breakdown -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="score-box">
+                                        <strong>Suitability</strong>
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar bg-info" role="progressbar" 
+                                                 style="width: {{ quote.suitability_score }}%" 
+                                                 aria-valuenow="{{ quote.suitability_score }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ quote.suitability_score }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="score-box">
+                                        <strong>Cost</strong>
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ quote.cost_score }}%" 
+                                                 aria-valuenow="{{ quote.cost_score }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ quote.cost_score }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="score-box">
+                                        <strong>Coverage</strong>
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar bg-warning" role="progressbar" 
+                                                 style="width: {{ quote.coverage_score }}%" 
+                                                 aria-valuenow="{{ quote.coverage_score }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ quote.coverage_score }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cost Information -->
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <div class="info-box">
+                                        <div class="info-label">Monthly Premium</div>
+                                        <div class="info-value">${{ quote.product.monthly_premium }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="info-box">
+                                        <div class="info-label">Annual Deductible</div>
+                                        <div class="info-value">${{ "{:,}".format(quote.product.annual_deductible) }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="info-box">
+                                        <div class="info-label">Copay</div>
+                                        <div class="info-value">${{ quote.product.copay }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="info-box">
+                                        <div class="info-label">Max Out-of-Pocket</div>
+                                        <div class="info-value">${{ "{:,}".format(quote.product.max_out_of_pocket) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rationale -->
+                            <div class="alert alert-light">
+                                <h6><i class="fas fa-lightbulb"></i> Why This Plan?</h6>
+                                <p class="mb-0">{{ quote.rationale }}</p>
+                            </div>
+
+                            <!-- Coverage Details -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-check-circle text-success"></i> Coverage Includes:</h6>
+                                    <ul class="list-unstyled">
+                                        {% for detail in quote.product.coverage_details %}
+                                        <li><i class="fas fa-check text-success"></i> {{ detail }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-times-circle text-danger"></i> Exclusions:</h6>
+                                    <ul class="list-unstyled">
+                                        {% for exclusion in quote.product.exclusions %}
+                                        <li><i class="fas fa-times text-danger"></i> {{ exclusion }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-3">
+                <a href="{{ url_for('insurance_cost_breakdown', request_id=quote_request.request_id, product_id=quote.product.product_id) }}" 
+                   class="btn btn-info">
+                    <i class="fas fa-chart-bar"></i> See Cost Breakdown
+                </a>
+                <button class="btn btn-warning" onclick="toggleFavorite('{{ quote.product.product_id }}', this)">
+                    <i class="fas fa-star"></i> 
+                    <span class="fav-text">{% if quote.product.product_id in quote_request.favorites %}Unfavorite{% else %}Add to Favorites{% endif %}</span>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="alert('Contact provider feature coming soon!')">
+                    <i class="fas fa-phone"></i> Contact Provider
+                </button>
+            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Footer Actions -->
+                    <div class="text-center mt-4">
+                        <p class="text-muted">Need help choosing? <a href="#">Contact a human advisor</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.quote-card {
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+}
+
+.quote-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.2);
+}
+
+.score-badge {
+    font-size: 1.1rem;
+    padding: 10px 15px;
+}
+
+.score-box {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.info-box {
+    padding: 15px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.info-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.info-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.progress {
+    height: 25px;
+}
+
+.progress-bar {
+    font-weight: bold;
+}
+</style>
+
+<script>
+function toggleFavorite(productId, button) {
+    fetch(`/insurance/favorite/{{ quote_request.request_id }}/${productId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const favText = button.querySelector('.fav-text');
+            if (data.is_favorite) {
+                favText.textContent = 'Unfavorite';
+                button.classList.remove('btn-warning');
+                button.classList.add('btn-success');
+            } else {
+                favText.textContent = 'Add to Favorites';
+                button.classList.remove('btn-success');
+                button.classList.add('btn-warning');
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
+{% endblock %}
+

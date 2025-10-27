@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Insurance Quotes{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-success text-white">
+                    <h3><i class="fas fa-exchange-alt"></i> Compare Insurance Quotes</h3>
+                    <p class="mb-0">Side-by-side comparison of {{ selected_quotes|length }} insurance plans</p>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('view_insurance_quotes', request_id=quote_request.request_id) }}" class="btn btn-secondary mb-4">
+                        <i class="fas fa-arrow-left"></i> Back to All Quotes
+                    </a>
+
+                    <!-- Comparison Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered comparison-table">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th style="width: 200px;">Feature</th>
+                                    {% for product in comparison.products %}
+                                    <th class="text-center">
+                                        <strong>{{ product.name }}</strong><br>
+                                        <small class="text-muted">{{ product.provider }}</small><br>
+                                        <span class="badge badge-info">{{ product.plan_type }}</span>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Scores Section -->
+                                <tr class="table-primary">
+                                    <td colspan="{{ comparison.products|length + 1 }}"><strong>SCORES</strong></td>
+                                </tr>
+                                {% for metric_key, metric_data in comparison.metrics.items() %}
+                                {% if 'score' in metric_key %}
+                                <tr>
+                                    <td><strong>{{ metric_data.label }}</strong></td>
+                                    {% for value in metric_data.values %}
+                                    <td class="text-center {% if loop.index0 == metric_data.best_index %}table-success{% endif %}">
+                                        {{ value }}{{ metric_data.unit }}
+                                        {% if loop.index0 == metric_data.best_index %}
+                                        <i class="fas fa-trophy text-warning"></i>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+
+                                <!-- Cost Section -->
+                                <tr class="table-info">
+                                    <td colspan="{{ comparison.products|length + 1 }}"><strong>COSTS</strong></td>
+                                </tr>
+                                {% for metric_key, metric_data in comparison.metrics.items() %}
+                                {% if 'score' not in metric_key %}
+                                <tr>
+                                    <td><strong>{{ metric_data.label }}</strong></td>
+                                    {% for value in metric_data.values %}
+                                    <td class="text-center {% if loop.index0 == metric_data.best_index %}table-success{% endif %}">
+                                        {{ metric_data.unit }}{{ "{:,}".format(value) if value > 1000 else value }}
+                                        {% if loop.index0 == metric_data.best_index %}
+                                        <i class="fas fa-trophy text-warning"></i>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+
+                                <!-- Coverage Section -->
+                                <tr class="table-success">
+                                    <td colspan="{{ comparison.products|length + 1 }}"><strong>COVERAGE DETAILS</strong></td>
+                                </tr>
+                                {% for coverage_row in comparison.coverage_comparison %}
+                                <tr>
+                                    <td>{{ coverage_row.name }}</td>
+                                    {% for is_covered in coverage_row.covered_by %}
+                                    <td class="text-center">
+                                        {% if is_covered %}
+                                        <i class="fas fa-check-circle text-success fa-lg"></i>
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-danger fa-lg"></i>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+
+                                <!-- Exclusions Section -->
+                                <tr class="table-warning">
+                                    <td colspan="{{ comparison.products|length + 1 }}"><strong>EXCLUSIONS</strong></td>
+                                </tr>
+                                {% for exclusion_row in comparison.exclusion_comparison %}
+                                <tr>
+                                    <td>{{ exclusion_row.name }}</td>
+                                    {% for is_excluded in exclusion_row.excluded_by %}
+                                    <td class="text-center">
+                                        {% if is_excluded %}
+                                        <i class="fas fa-ban text-danger fa-lg"></i>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="alert alert-light mt-4">
+                        <h5>Legend:</h5>
+                        <p><i class="fas fa-trophy text-warning"></i> = Best value in this category</p>
+                        <p><span class="badge badge-success">Green highlight</span> = Winner for that metric</p>
+                        <p><i class="fas fa-check-circle text-success"></i> = Covered &nbsp;&nbsp; 
+                           <i class="fas fa-times-circle text-danger"></i> = Not covered &nbsp;&nbsp;
+                           <i class="fas fa-ban text-danger"></i> = Excluded</p>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="row mt-4">
+                        {% for idx, quote in enumerate(selected_quotes) %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    {{ comparison.products[idx].name }}
+                                </div>
+                                <div class="card-body">
+                                    <h5>Overall Score: {{ quote.overall_score }}/100</h5>
+                                    <p class="small">{{ quote.rationale[:150] }}...</p>
+                                    <a href="{{ url_for('insurance_cost_breakdown', request_id=quote_request.request_id, product_id=quote.product.product_id) }}" 
+                                       class="btn btn-sm btn-info btn-block">
+                                        View Cost Breakdown
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.comparison-table td, .comparison-table th {
+    vertical-align: middle !important;
+}
+.comparison-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #343a40 !important;
+    color: white !important;
+    z-index: 10;
+}
+</style>
+{% endblock %}
+

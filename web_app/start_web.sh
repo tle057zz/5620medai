@@ -1,32 +1,41 @@
 #!/bin/bash
-# Quick start script for Clinical AI Web Application
+# Quick start script for Clinical AI Web Application (single env: ../venv_ai)
+set -e
 
 echo "=============================================="
 echo "🏥 Clinical AI System - Web Application"
 echo "=============================================="
 echo ""
 
-# Check if virtual environment exists
-if [ ! -d "../venv" ]; then
-    echo "❌ Virtual environment not found!"
-    echo "Please set up the environment first:"
-    echo "  cd .."
-    echo "  source venv/bin/activate"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+VENV_DIR="$PROJECT_DIR/venv_ai"
+
+# Check virtual environment
+if [ ! -d "$VENV_DIR" ]; then
+    echo "❌ Virtual environment not found at: $VENV_DIR"
+    echo "Create it once with:"
+    echo "  cd \"$PROJECT_DIR\" && python3.11 -m venv venv_ai"
     exit 1
 fi
 
-# Activate virtual environment
-echo "📦 Activating virtual environment..."
-source ../venv/bin/activate
+echo "📦 Activating virtual environment (venv_ai)..."
+source "$VENV_DIR/bin/activate"
 
-# Check if Flask dependencies are installed
-echo "🔍 Checking Flask dependencies..."
-pip show Flask > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "📥 Installing Flask dependencies..."
-    pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements_flask.txt
-else
-    echo "✅ Flask dependencies already installed"
+# Python executable
+PYTHON="python3.11"
+command -v $PYTHON >/dev/null 2>&1 || PYTHON="python3"
+
+# Ensure minimal web/AI runtime deps (idempotent, fast if already installed)
+echo "🔍 Ensuring required packages (Flask + pandas + PDF/OCR)..."
+pip install -q Flask Flask-Login Flask-WTF pandas pdfplumber PyMuPDF pytesseract pdf2image >/dev/null 2>&1 && echo "✅ Web runtime OK"
+
+echo ""
+echo "Killing any process on port 5000 (if running)..."
+if command -v lsof >/dev/null 2>&1; then
+  PIDS=$(lsof -t -i:5000 || true)
+  if [ -n "$PIDS" ]; then
+    kill -9 $PIDS || true
+  fi
 fi
 
 echo ""
@@ -46,6 +55,6 @@ echo ""
 echo "Press CTRL+C to stop the server"
 echo ""
 
-# Run the Flask application
-python app.py
+cd "$PROJECT_DIR/web_app"
+$PYTHON app.py
 

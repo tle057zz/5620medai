@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Request Insurance Quote{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3><i class="fas fa-shield-alt"></i> Request Insurance Quote</h3>
+                    <p class="mb-0">Complete the form below to receive personalized insurance quotes</p>
+                </div>
+                <div class="card-body">
+                    {% if session.get('document_data') %}
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-file-medical"></i> <strong>Document Processed!</strong>
+                        Extracted {{ session.get('document_data').conditions|length }} conditions and 
+                        {{ session.get('document_data').medications|length }} medications.
+                        <a href="{{ url_for('prefill_from_document') }}" class="btn btn-sm btn-success ml-2">
+                            <i class="fas fa-magic"></i> Auto-Fill Form
+                        </a>
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    </div>
+                    {% endif %}
+                    
+                    <form method="POST" action="{{ url_for('request_insurance_quote') }}" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Document Upload Section (NEW!) -->
+                        <div id="document-upload-section" class="form-section mb-4">
+                            <h4 class="section-title"><i class="fas fa-file-upload"></i> Upload Medical Document (Optional)</h4>
+                            <hr>
+                            <div class="alert alert-info">
+                                <i class="fas fa-robot"></i> <strong>AI-Powered Document Processing</strong><br>
+                                Upload your medical records (PDF) and our AI will automatically extract:
+                                <ul class="mb-0 mt-2">
+                                    <li>Current health conditions</li>
+                                    <li>Medications</li>
+                                    <li>Past medical history</li>
+                                    <li>Lab values and vital signs</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="{{ form.medical_document.id }}">{{ form.medical_document.label }}</label>
+                                    {{ form.medical_document(class="form-control-file") }}
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> Accepts PDF files up to 16MB. 
+                                        Uses OCR → NER → Entity Linking pipeline.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Steps -->
+                        <div class="mb-4">
+                            <ul class="nav nav-pills nav-justified">
+                                <li class="nav-item">
+                                    <a class="nav-link active" href="#health-section">Health Data</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#history-section">Medical History</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#income-section">Income Details</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#consent-section">Consent</a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Health Data Section -->
+                        <div id="health-section" class="form-section">
+                            <h4 class="section-title"><i class="fas fa-heartbeat"></i> Current Health Data</h4>
+                            <hr>
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="{{ form.current_conditions.id }}">{{ form.current_conditions.label }}</label>
+                                    {{ form.current_conditions(class="form-control") }}
+                                    <small class="form-text text-muted">Separate multiple conditions with commas</small>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="{{ form.current_medications.id }}">{{ form.current_medications.label }}</label>
+                                    {{ form.current_medications(class="form-control") }}
+                                    <small class="form-text text-muted">Separate multiple medications with commas</small>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.bmi.id }}">{{ form.bmi.label }}</label>
+                                    {{ form.bmi(class="form-control") }}
+                                    <small class="form-text text-muted">Calculate BMI: weight(kg) / height(m)²</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.blood_pressure.id }}">{{ form.blood_pressure.label }}</label>
+                                    {{ form.blood_pressure(class="form-control") }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.cholesterol.id }}">{{ form.cholesterol.label }}</label>
+                                    {{ form.cholesterol(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.glucose.id }}">{{ form.glucose.label }}</label>
+                                    {{ form.glucose(class="form-control") }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.smoking_status.id }}">{{ form.smoking_status.label }}</label>
+                                    {{ form.smoking_status(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.alcohol_consumption.id }}">{{ form.alcohol_consumption.label }}</label>
+                                    {{ form.alcohol_consumption(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medical History Section -->
+                        <div id="history-section" class="form-section mt-4">
+                            <h4 class="section-title"><i class="fas fa-history"></i> Medical History</h4>
+                            <hr>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.past_conditions.id }}">{{ form.past_conditions.label }}</label>
+                                    {{ form.past_conditions(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.surgeries.id }}">{{ form.surgeries.label }}</label>
+                                    {{ form.surgeries(class="form-control") }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.hospitalizations.id }}">{{ form.hospitalizations.label }}</label>
+                                    {{ form.hospitalizations(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.family_history.id }}">{{ form.family_history.label }}</label>
+                                    {{ form.family_history(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Income & Employment Section -->
+                        <div id="income-section" class="form-section mt-4">
+                            <h4 class="section-title"><i class="fas fa-dollar-sign"></i> Income & Employment Details</h4>
+                            <hr>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.annual_income.id }}">{{ form.annual_income.label }} <span class="text-danger">*</span></label>
+                                    {{ form.annual_income(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.employment_status.id }}">{{ form.employment_status.label }} <span class="text-danger">*</span></label>
+                                    {{ form.employment_status(class="form-control") }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.occupation.id }}">{{ form.occupation.label }}</label>
+                                    {{ form.occupation(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.dependents.id }}">{{ form.dependents.label }}</label>
+                                    {{ form.dependents(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Consent Section -->
+                        <div id="consent-section" class="form-section mt-4">
+                            <h4 class="section-title"><i class="fas fa-check-circle"></i> Consent & Agreement</h4>
+                            <hr>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Your data will be used solely to generate insurance quotes and will be handled in accordance with HIPAA regulations.
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                {{ form.consent_data_use(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.consent_data_use.id }}">
+                                    {{ form.consent_data_use.label }} <span class="text-danger">*</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-4">
+                                {{ form.consent_privacy(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.consent_privacy.id }}">
+                                    {{ form.consent_privacy.label }} <span class="text-danger">*</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center mt-4">
+                            {{ form.submit(class="btn btn-primary btn-lg px-5") }}
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg px-5 ml-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.section-title {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.form-section {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.nav-pills .nav-link {
+    color: #495057;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #007bff;
+}
+</style>
+{% endblock %}
+

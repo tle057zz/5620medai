@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case: Request Insurance Quote</title>
+<style>
+  :root { --bg:#0b1020; --card:#121a36; --muted:#9fb0d8; --text:#e9efff; --accent:#7aa2ff; }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;
+       background:linear-gradient(180deg,#0a0f24 0%, #0b1020 100%); color:var(--text); margin:0; padding:2rem;}
+  .container{max-width:980px; margin:0 auto;}
+  header h1{margin:0 0 0.25rem 0; font-size:2rem; letter-spacing:.2px}
+  header p{margin:.25rem 0 1.25rem 0; color:var(--muted)}
+  .card{background:rgba(18,26,54,.8); border:1px solid rgba(122,162,255,.2); border-radius:16px; padding:1.25rem 1.25rem; margin:1rem 0}
+  h2{font-size:1.25rem; margin:.25rem 0 0.75rem 0; color:#cfe1ff}
+  h3{font-size:1.05rem; margin:.75rem 0 .5rem 0; color:#bfd0ff}
+  table{width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden; margin:.5rem 0 0 0}
+  th,td{border:1px solid rgba(122,162,255,.2); padding:.6rem .7rem; vertical-align:top}
+  th{background:rgba(122,162,255,.08); color:#d7e5ff; text-align:left}
+  code,kbd{background:rgba(122,162,255,.12); border:1px solid rgba(122,162,255,.25); padding:.1rem .35rem; border-radius:6px; color:#e8f0ff}
+  ul{margin:.3rem 0 .7rem 1.2rem}
+  .step-list>li{margin:.35rem 0}
+  .two-col{display:grid; grid-template-columns: 1fr; gap:1rem}
+  @media (min-width:820px){ .two-col{grid-template-columns: 1fr 1fr} }
+  .small{color:var(--muted); font-size:.9rem}
+  .tag{display:inline-block; padding:.15rem .45rem; border:1px solid rgba(122,162,255,.3); border-radius:999px; margin-right:.35rem; font-size:.8rem; color:#d9e6ff}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Request Insurance Quote (Use Case)</h1>
+      <p class="small">Source: Provided screenshots • Curated and structured into HTML</p>
+      <div>
+        <span class="tag">Business-Level</span>
+        <span class="tag">AI-Assisted</span>
+        <span class="tag">Healthcare &amp; Insurance</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:16%">Name</th>
+            <th style="width:18%">Goal</th>
+            <th style="width:10%">Level</th>
+            <th style="width:20%">Pre-condition</th>
+            <th style="width:18%">Success Condition</th>
+            <th style="width:18%">Failure Condition</th>
+            <th style="width:16%">Trigger</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Request Insurance Quote</td>
+            <td>Obtain tailored health insurance quote</td>
+            <td>Business</td>
+            <td>User has entered health data, past medical records, and income details into the system</td>
+            <td>AI provides insurance options tailored to user’s health, history, and financial condition</td>
+            <td>No insurance quote generated or irrelevant/unusable quotes provided</td>
+            <td>User is logged in and selects <kbd>Request Insurance Quote</kbd></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Main Scenario (Happy Path)</h2>
+      <ol class="step-list">
+        <li>User logs into the healthcare system.</li>
+        <li>User navigates to the Insurance section and selects <em>Request Insurance Quote</em>.</li>
+        <li>System prompts the user to enter/update health data, past medical history, and income details.</li>
+        <li>User submits the required information.</li>
+        <li>AI engine processes the input and searches available insurance options.</li>
+        <li>AI generates tailored insurance quotes based on health conditions, past records, and income.</li>
+        <li>System displays recommended insurance quotes with details (coverage, cost, provider).</li>
+        <li>User reviews quotes and saves/ downloads them for reference.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Nested Paths (Sub–Use Cases)</h2>
+
+      <div class="two-col">
+        <div>
+          <h3>1) Login to Healthcare System — <span class="small">“Login”</span></h3>
+          <ol class="step-list">
+            <li>Ask for credentials (email/ID + password).</li>
+            <li>User enters credentials.</li>
+            <li>Validate credentials (hash check, account status).</li>
+            <li>If enabled, prompt &amp; verify MFA (OTP/biometrics).</li>
+            <li>Create session &amp; set auth token.</li>
+            <li>Redirect user to dashboard.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>2) Open Insurance Quote Module — <span class="small">“Navigate to Insurance”</span></h3>
+          <ol class="step-list">
+            <li>User selects <em>Insurance</em> from navigation.</li>
+            <li>System loads Insurance home (policies, quotes, eligibility).</li>
+            <li>Check profile completeness flags (health, records, income).</li>
+            <li>Display <kbd>Request Insurance Quote</kbd> action.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>3) Collect Data — <span class="small">“Enter/Update Health, Records, Income”</span></h3>
+          <ol class="step-list">
+            <li>Show structured form (health conditions, meds, hospitalizations, income).</li>
+            <li>Pre‑fill from EHR/previous entries; label data freshness.</li>
+            <li>Ask for consents to use/share data with insurers.</li>
+            <li>User edits/attaches documents (e.g., discharge letter).</li>
+            <li>Validate fields (required, ranges, cross‑field logic).</li>
+            <li>Save draft to profile.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>4) Submit Request — <span class="small">“Submit Quote Request”</span></h3>
+          <ol class="step-list">
+            <li>User clicks <kbd>Submit</kbd>.</li>
+            <li>Package payload (PHI minimization, pseudonymization).</li>
+            <li>Assign request ID and enqueue for processing.</li>
+            <li>Return acknowledgement and status badge (“Processing…”).</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>5) Process &amp; Search Options — <span class="small">“Orchestrate Quote Retrieval”</span></h3>
+          <ol class="step-list">
+            <li>Normalize input (terminology mapping: ICD/ATC, income brackets).</li>
+            <li>Run risk stratification &amp; eligibility rules.</li>
+            <li>Build search criteria (coverage needs, exclusions, budget).</li>
+            <li>Call insurer product catalogs/APIs (with retries/backoff).</li>
+            <li>Collect candidate products &amp; premiums.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>6) Generate Tailored Quotes — <span class="small">“Compose Recommendations”</span></h3>
+          <ol class="step-list">
+            <li>Score options (fit vs. conditions, provider network, OOP limits).</li>
+            <li>Rank by total cost of ownership (premium + expected OOP).</li>
+            <li>Compute explanations (why recommended / why excluded).</li>
+            <li>Produce recommendation set (JSON) with rationale &amp; confidence.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>7) Display Quotes — <span class="small">“Present Results”</span></h3>
+          <ol class="step-list">
+            <li>Render quote cards (premium, deductible, copay, exclusions).</li>
+            <li>Show filters/sort (price, coverage depth, network).</li>
+            <li>Provide <em>View details</em>, <em>Compare</em>, and <em>Download PDF</em>.</li>
+            <li>Log presentation for audit &amp; caching.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>8) Review &amp; Save/Download — <span class="small">“User Acts on Quotes”</span></h3>
+          <ol class="step-list">
+            <li>User compares shortlisted plans.</li>
+            <li>User saves favorites to profile.</li>
+            <li>User downloads/prints PDF summary.</li>
+            <li>(Optional) Share with doctor / request human advisor follow‑up.</li>
+            <li>Persist selection &amp; update timeline/history.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Extension Paths</h2>
+      <h3>1) Doctor Involvement for Validation</h3>
+      <ul class="step-list">
+        <li><strong>Trigger:</strong> After quotes are generated (Step 6), user enables “Doctor review required.”</li>
+      </ul>
+      <ol class="step-list">
+        <li>System routes generated quotes to the assigned doctor.</li>
+        <li>Doctor reviews AI recommendations.</li>
+        <li>Doctor adds notes or overrides AI ranking if needed.</li>
+        <li>Updated, validated quotes are shown to user.</li>
+      </ol>
+      <p class="small"><strong>Outcome:</strong> User receives medically validated quotes rather than raw AI suggestions. <strong>Next:</strong> Continue to normal path Step 7.</p>
+
+      <h3>2) User Requests Cost Breakdown</h3>
+      <ul class="step-list">
+        <li><strong>Trigger:</strong> While viewing quotes (Step 7), user clicks “See detailed cost breakdown.”</li>
+      </ul>
+      <ol class="step-list">
+        <li>System expands quote details: premium, deductibles, co‑pay, out‑of‑pocket maximums.</li>
+        <li>AI provides a projected cost simulation (e.g., “Estimated yearly expense if hospitalized twice”).</li>
+        <li>User can compare this breakdown across multiple plans.</li>
+      </ol>
+      <p class="small"><strong>Outcome:</strong> User gains deeper cost insight before deciding. <strong>Next:</strong> Continue to normal path Step 8.</p>
+    </section>
+
+    <section class="card">
+      <h2>Failure Paths</h2>
+
+      <h3>A) Derived from Step 3 — Data Collection Errors</h3>
+      <ul>
+        <li><strong>Failure 3a.1:</strong> User skips mandatory fields (e.g., income). <em>Response:</em> Show error and request correction.</li>
+        <li><strong>Failure 3a.2:</strong> Invalid or inconsistent data (e.g., negative income). <em>Response:</em> Display validation error and block submission.</li>
+        <li><strong>Failure 3a.3:</strong> System cannot retrieve past medical records. <em>Response:</em> Notify user; allow retry or proceed with partial data.</li>
+        <li><strong>Failure 3a.4:</strong> Session timeout before completion. <em>Response:</em> Redirect to login; prompt to re‑enter information.</li>
+      </ul>
+
+      <h3>B) Derived from Step 6 — AI/Integration Errors</h3>
+      <ul>
+        <li><strong>Failure 6a.1:</strong> AI cannot process due to corrupted/incomplete input. <em>Response:</em> Show error; prompt to fix data.</li>
+        <li><strong>Failure 6a.2:</strong> No matching insurance products found. <em>Response:</em> Inform user; suggest contacting human advisor.</li>
+        <li><strong>Failure 6a.3:</strong> External insurer APIs unavailable. <em>Response:</em> Show partial results with warning; ask to try later.</li>
+        <li><strong>Failure 6a.4:</strong> Internal system error (timeout/overload). <em>Response:</em> Log error; notify temporary issue; allow retry.</li>
+      </ul>
+    </section>
+
+    <footer class="card">
+      <p class="small">Prepared for coursework/documentation. You can copy sections directly into specs, SRS, or a wiki.</p>
+    </footer>
+  </div>
+</body>
+</html>

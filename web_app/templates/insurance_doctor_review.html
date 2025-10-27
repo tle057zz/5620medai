@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Review - Insurance Quotes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3><i class="fas fa-user-md"></i> Doctor Review - Insurance Quote Request</h3>
+                    <p class="mb-0">Request ID: {{ quote_request.request_id }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Use Case:</strong> Extension Path 1 - Doctor Involvement for Validation
+                        <br>Review the AI-generated insurance quotes and provide medical validation.
+                    </div>
+
+                    <!-- Patient Information -->
+                    <h4>Patient Profile</h4>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>User ID:</strong> {{ quote_request.user_id }}</p>
+                                    <p><strong>Submitted:</strong> {{ quote_request.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <p><strong>Current Conditions:</strong><br>
+                                        {% if quote_request.health_data.conditions %}
+                                            <span class="badge badge-danger">{{ quote_request.health_data.conditions|join('</span> <span class="badge badge-danger">')|safe }}</span>
+                                        {% else %}
+                                            <span class="text-muted">None reported</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Current Medications:</strong><br>
+                                        {% if quote_request.health_data.medications %}
+                                            {{ quote_request.health_data.medications|join(', ') }}
+                                        {% else %}
+                                            <span class="text-muted">None reported</span>
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Past Medical History:</strong><br>
+                                        {% if quote_request.medical_history.past_conditions %}
+                                            {{ quote_request.medical_history.past_conditions|join(', ') }}
+                                        {% else %}
+                                            <span class="text-muted">None reported</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI-Generated Quotes -->
+                    <h4>AI-Generated Insurance Quotes ({{ quote_request.quotes|length }})</h4>
+                    {% for quote in quote_request.quotes %}
+                    <div class="card mb-3">
+                        <div class="card-header {% if loop.first %}bg-success text-white{% else %}bg-light{% endif %}">
+                            <strong>Rank #{{ loop.index }}: {{ quote.product.name }}</strong>
+                            <span class="float-right">Overall Score: {{ quote.overall_score }}/100</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Provider:</strong> {{ quote.product.provider }}</p>
+                                    <p><strong>Plan Type:</strong> {{ quote.product.plan_type }}</p>
+                                    <p><strong>Monthly Premium:</strong> ${{ quote.product.monthly_premium }}</p>
+                                    <p><strong>Annual Deductible:</strong> ${{ "{:,}".format(quote.product.annual_deductible) }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Scores:</strong></p>
+                                    <ul>
+                                        <li>Suitability: {{ quote.suitability_score }}/100</li>
+                                        <li>Cost: {{ quote.cost_score }}/100</li>
+                                        <li>Coverage: {{ quote.coverage_score }}/100</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p><strong>AI Rationale:</strong> {{ quote.rationale }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Doctor Review Form -->
+                    <h4 class="mt-4">Your Review</h4>
+                    <form method="POST" action="{{ url_for('doctor_review_quotes', request_id=quote_request.request_id) }}">
+                        <div class="form-group">
+                            <label for="doctor_notes"><strong>Doctor's Notes & Recommendations:</strong></label>
+                            <textarea name="doctor_notes" id="doctor_notes" class="form-control" rows="6" required
+                                      placeholder="Provide your medical assessment of the AI recommendations. Consider patient's current conditions, medications, and any factors the AI may have missed."></textarea>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="override_ranking" name="override_ranking" value="true">
+                            <label class="form-check-label" for="override_ranking">
+                                <strong>I recommend a different ranking than the AI suggestion</strong>
+                            </label>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            <strong>Medical Validation:</strong> Your review will be added to the patient's quote request and may influence their final decision.
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check-circle"></i> Approve & Complete Review
+                        </button>
+                        <a href="{{ url_for('pending_doctor_reviews') }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-arrow-left"></i> Back to Queue
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

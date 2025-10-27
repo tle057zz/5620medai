@@ -4,6 +4,12 @@ __pycache__/
 .venv/
 venv/
 env/
+# all common virtualenv names anywhere in the tree
+**/.venv/
+**/venv/
+**/venv_ai/
+**/venv_web/
+**/env/
 .DS_Store
 Thumbs.db
 .vscode/
@@ -11,3 +17,7 @@ Thumbs.db
 *.pdf
 *.log
 *.zip
+# Large model archives (avoid pushing to GitHub)
+en_core_sci_sm*.tar.gz
+en_ner_bc5cdr_md*.tar.gz
+*.model.tar.gz

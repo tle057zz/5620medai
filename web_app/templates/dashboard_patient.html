@@ -44,7 +44,7 @@
 
 <!-- Quick Stats -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card border-primary">
             <div class="card-body text-center">
                 <i class="bi bi-file-earmark-medical display-4 text-primary"></i>
@@ -53,7 +53,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card border-success">
             <div class="card-body text-center">
                 <i class="bi bi-capsule display-4 text-success"></i>
@@ -62,12 +62,61 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card border-warning">
             <div class="card-body text-center">
                 <i class="bi bi-calendar-check display-4 text-warning"></i>
                 <h3 class="mt-2">2</h3>
                 <p class="text-muted mb-0">Upcoming Appointments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-shield-check display-4 text-info"></i>
+                <h3 class="mt-2">0</h3>
+                <p class="text-muted mb-0">Insurance Quotes</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Insurance Quote Feature Card (NEW) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Insurance Quote Service (NEW)</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5>Get Personalized Insurance Quotes</h5>
+                        <p class="text-muted">
+                            Our AI-powered system analyzes your health data, medical history, and income details 
+                            to match you with the most suitable insurance products. Get ranked quotes based on 
+                            suitability, cost, and coverage.
+                        </p>
+                        <ul class="mb-3">
+                            <li>AI-driven risk assessment and product matching</li>
+                            <li>Personalized quotes ranked by suitability</li>
+                            <li>Compare coverage, costs, and benefits</li>
+                            <li>Download and share quotes with advisors</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="bi bi-shield-fill-check display-1 text-info mb-3"></i>
+                        <div>
+                            <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-info btn-lg mb-2 d-block">
+                                <i class="bi bi-plus-circle"></i> Request Quote
+                            </a>
+                            <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-outline-info d-block">
+                                <i class="bi bi-clock-history"></i> View History
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

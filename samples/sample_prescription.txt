@@ -1,0 +1,68 @@
+RIVERSIDE MEDICAL CENTER
+Prescription Record
+
+Patient Name: Maria Garcia
+DOB: 07/22/1968
+Patient ID: PMC-789456
+Date: October 25, 2024
+
+Allergies: Penicillin
+
+Current Diagnoses:
+- Chronic Obstructive Pulmonary Disease (COPD)
+- Coronary Artery Disease
+- Gastroesophageal Reflux Disease (GERD)
+
+PRESCRIPTIONS:
+
+1. Albuterol Inhaler 90mcg
+   Sig: 2 puffs every 4-6 hours as needed for shortness of breath
+   Quantity: 1 inhaler
+   Refills: 3
+
+2. Tiotropium (Spiriva) 18mcg
+   Sig: Inhale 1 capsule once daily
+   Quantity: 30 capsules
+   Refills: 5
+
+3. Clopidogrel (Plavix) 75mg
+   Sig: Take 1 tablet by mouth once daily
+   Quantity: 30 tablets
+   Refills: 3
+
+4. Metoprolol Succinate 50mg
+   Sig: Take 1 tablet by mouth once daily
+   Quantity: 30 tablets
+   Refills: 3
+
+5. Omeprazole 20mg
+   Sig: Take 1 capsule by mouth once daily before breakfast
+   Quantity: 30 capsules
+   Refills: 5
+
+6. Prednisone 10mg
+   Sig: Take 1 tablet by mouth once daily for 5 days
+   Quantity: 5 tablets
+   Refills: 0
+   Note: For COPD exacerbation
+
+VITAL SIGNS:
+Blood Pressure: 138/86 mmHg
+Pulse: 72 bpm
+Oxygen Saturation: 94% on room air
+Respiratory Rate: 18/min
+
+INSTRUCTIONS:
+- Continue using rescue inhaler as needed
+- Monitor blood pressure at home
+- Report any chest pain, severe shortness of breath, or swelling immediately
+- Follow up in 2 weeks
+
+Prescriber: Dr. Michael Chen, MD
+Cardiology & Pulmonology
+DEA: MC1234567
+Phone: (555) 123-4567
+Date: October 25, 2024
+
+Electronic Signature: Dr. Michael Chen
+

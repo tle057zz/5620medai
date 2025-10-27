@@ -1,0 +1,58 @@
+CITY GENERAL HOSPITAL
+Medical Record
+
+Patient Information:
+Name: John Smith
+Date of Birth: 03/15/1975
+Medical Record Number: MRN-2024-001234
+Date of Visit: October 20, 2024
+
+Chief Complaint:
+Patient presents with complaints of increased thirst, frequent urination, and fatigue over the past 3 months.
+
+Vital Signs:
+Blood Pressure: 145/92 mmHg
+Heart Rate: 78 bpm
+Temperature: 98.6°F
+Weight: 210 lbs
+Height: 5'10"
+BMI: 30.1
+
+Medical History:
+- Type 2 Diabetes Mellitus (diagnosed 2020)
+- Hypertension (diagnosed 2018)
+- Hyperlipidemia
+
+Current Medications:
+1. Metformin 1000mg - twice daily
+2. Lisinopril 20mg - once daily
+3. Atorvastatin 40mg - once daily at bedtime
+4. Aspirin 81mg - once daily
+
+Laboratory Results:
+Fasting Blood Glucose: 165 mg/dL (High)
+HbA1c: 8.2% (High)
+Total Cholesterol: 220 mg/dL
+LDL Cholesterol: 140 mg/dL
+HDL Cholesterol: 45 mg/dL
+Triglycerides: 175 mg/dL
+Creatinine: 1.1 mg/dL
+
+Assessment:
+1. Type 2 Diabetes Mellitus - poorly controlled
+2. Essential Hypertension - moderately controlled
+3. Hyperlipidemia - on treatment
+
+Plan:
+1. Increase Metformin to 1500mg twice daily
+2. Continue current antihypertensive therapy
+3. Continue statin therapy
+4. Dietary counseling - low sodium, low sugar diet
+5. Encourage regular physical activity - 30 minutes daily
+6. Follow-up in 3 months with repeat labs
+
+Dr. Sarah Johnson, MD
+Internal Medicine
+License: MD-123456
+Date: October 20, 2024
+
