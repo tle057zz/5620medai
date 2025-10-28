@@ -461,14 +461,77 @@ def process_clinical_document(
 
 
 # =============================
-# Storage (In-Memory for Demo)
+# Storage (In-Memory + Database)
 # =============================
 analysis_results_storage: Dict[str, ClinicalAnalysisResult] = {}
 
 
-def save_analysis_result(result: ClinicalAnalysisResult) -> str:
-    """Save analysis result and return ID"""
+def save_analysis_result(result: ClinicalAnalysisResult, patient_id: str = None) -> str:
+    """
+    Save analysis result to in-memory storage and optionally to database
+    Returns analysis_id
+    """
+    # In-memory storage
     analysis_results_storage[result.analysis_id] = result
+    
+    # Try to save to database (if database is initialized)
+    if patient_id:
+        try:
+            from database_config import db, MedicalRecord, FHIRBundle, Explanation, ProcessingJob
+            from hashlib import sha256
+            import json as jsonlib
+            
+            # Create medical record entry
+            file_hash = sha256(result.analysis_id.encode()).hexdigest()[:32]
+            
+            medical_record = MedicalRecord(
+                file_hash=file_hash,
+                patient_id=patient_id,
+                document_type=result.document_type,
+                status='Processed' if result.success else 'Failed',
+                uploaded_at=result.timestamp
+            )
+            db.session.add(medical_record)
+            db.session.flush()  # Get the ID
+            
+            # Save FHIR bundle if available
+            if result.fhir_bundle:
+                fhir_bundle = FHIRBundle(
+                    medical_record_id=medical_record.id,
+                    json_data=jsonlib.dumps(result.fhir_bundle),
+                    valid=result.success,
+                    generated_at=result.timestamp
+                )
+                db.session.add(fhir_bundle)
+            
+            # Save explanation if available
+            if result.explanation_text:
+                explanation = Explanation(
+                    medical_record_id=medical_record.id,
+                    summary_md=result.explanation_text,
+                    risks_md='\n'.join(result.red_flags) if result.red_flags else None,
+                    low_confidence=result.risk_level == 'unknown',
+                    generated_at=result.timestamp
+                )
+                db.session.add(explanation)
+            
+            # Save processing jobs
+            for step in result.processing_steps:
+                job = ProcessingJob(
+                    medical_record_id=medical_record.id,
+                    job_kind=step['step'].upper().replace(' ', '_'),
+                    status='Succeeded' if step['status'] == 'completed' else 'Failed' if step['status'] == 'failed' else 'Queued',
+                    pipeline_version='1.0'
+                )
+                db.session.add(job)
+            
+            db.session.commit()
+            print(f"✓ Saved analysis to database (record_id: {medical_record.id})")
+            
+        except Exception as e:
+            print(f"⚠ Could not save to database: {e}")
+            # Continue anyway - in-memory storage works
+    
     return result.analysis_id
 
 
@@ -478,8 +541,8 @@ def get_analysis_result(analysis_id: str) -> Optional[ClinicalAnalysisResult]:
 
 
 def get_user_analysis_history(user_id: str, limit: int = 20) -> List[ClinicalAnalysisResult]:
-    """Get analysis history for a user (would use DB in production)"""
-    # In production, filter by user_id from database
-    # For now, return all results
+    """Get analysis history for a user"""
+    # Return from in-memory storage
+    # In production, this would query the database
     return list(analysis_results_storage.values())[:limit]
 

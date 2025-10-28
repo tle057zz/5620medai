@@ -30,6 +30,15 @@ from clinical_analysis_processor import (
     process_clinical_document, save_analysis_result, get_analysis_result,
     get_user_analysis_history, PIPELINE_AVAILABLE
 )
+from patient_history_analyzer import PatientHistoryAnalyzer, assess_data_quality
+from approval_models import (
+    create_review_package, save_approval_decision, get_approval_decision,
+    get_pending_reviews, validate_approval, generate_digital_signature,
+    escalate_for_review, ApprovalDecision, ApprovalStatus, SafetyLevel
+)
+from financial_assistance import (
+    FinancialProfile, create_assistance_recommendation, get_assistance_recommendation
+)
 from werkzeug.utils import secure_filename
 
 # Initialize Flask app
@@ -41,6 +50,10 @@ app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize database
+from database_config import init_database
+db = init_database(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -726,8 +739,8 @@ def clinical_analysis():
                 pass
             
             if result.success:
-                # Save result
-                analysis_id = save_analysis_result(result)
+                # Save result (with patient ID for database storage)
+                analysis_id = save_analysis_result(result, patient_id=current_user.id)
                 
                 flash(f'✓ Analysis complete! Identified {len(result.conditions)} conditions, {len(result.medications)} medications.', 'success')
                 
@@ -821,6 +834,464 @@ def download_clinical_report(analysis_id):
     response = make_response(json.dumps(result.to_dict(), indent=2, default=str))
     response.headers['Content-Type'] = 'application/json'
     response.headers['Content-Disposition'] = f'attachment; filename=clinical_analysis_{analysis_id}.json'
+    
+    return response
+
+
+# ================================
+# Patient History Feature (UC-07 - Sarvadnya Kamble)
+# Longitudinal Patient History with Timeline & Trends
+# ================================
+
+@app.route('/patient-history/<patient_id>')
+@login_required
+@role_required('doctor', 'admin')
+def patient_history_dashboard(patient_id):
+    """
+    Main patient history dashboard
+    Shows comprehensive longitudinal view with timeline, trends, and data quality
+    """
+    try:
+        # Create analyzer instance
+        analyzer = PatientHistoryAnalyzer(patient_id)
+        
+        # Aggregate all patient data
+        history_data = analyzer.aggregate_patient_data()
+        
+        if not history_data['success']:
+            flash(history_data.get('message', 'No medical history found for this patient.'), 'warning')
+            return render_template('patient_history_empty.html', patient_id=patient_id)
+        
+        # Assess data quality
+        quality = assess_data_quality(history_data['aggregated_data'])
+        
+        # Get patient info from example users (in production, from database)
+        patient_user = None
+        for username, user in example_users.items():
+            if user.id == patient_id:
+                patient_user = user
+                break
+        
+        return render_template('patient_history_dashboard.html',
+                             patient_id=patient_id,
+                             patient=patient_user,
+                             history=history_data,
+                             quality=quality)
+    
+    except Exception as e:
+        print(f"✗ Error loading patient history: {e}")
+        flash(f'Error loading patient history: {str(e)}', 'danger')
+        return redirect(url_for('doctor_dashboard'))
+
+
+@app.route('/patient-history/<patient_id>/timeline')
+@login_required
+@role_required('doctor', 'admin')
+def patient_history_timeline(patient_id):
+    """
+    Interactive timeline view of patient medical events
+    """
+    try:
+        analyzer = PatientHistoryAnalyzer(patient_id)
+        history_data = analyzer.aggregate_patient_data()
+        
+        if not history_data['success']:
+            flash('No medical history found.', 'warning')
+            return redirect(url_for('patient_history_dashboard', patient_id=patient_id))
+        
+        return render_template('patient_history_timeline.html',
+                             patient_id=patient_id,
+                             timeline=history_data['timeline'],
+                             date_range=history_data['date_range'])
+    
+    except Exception as e:
+        print(f"✗ Error loading timeline: {e}")
+        flash(f'Error loading timeline: {str(e)}', 'danger')
+        return redirect(url_for('patient_history_dashboard', patient_id=patient_id))
+
+
+@app.route('/patient-history/<patient_id>/export')
+@login_required
+@role_required('doctor', 'admin')
+def export_patient_history(patient_id):
+    """
+    Export patient history as JSON
+    """
+    try:
+        analyzer = PatientHistoryAnalyzer(patient_id)
+        history_data = analyzer.aggregate_patient_data()
+        
+        if not history_data['success']:
+            flash('No medical history found.', 'warning')
+            return redirect(url_for('patient_history_dashboard', patient_id=patient_id))
+        
+        # Return as JSON download
+        from flask import make_response
+        response = make_response(json.dumps(history_data, indent=2, default=str))
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename=patient_history_{patient_id}.json'
+        
+        # Log export action
+        from database_config import log_action
+        try:
+            log_action(current_user.id, 'export_history', 'patient', patient_id)
+        except:
+            pass  # Logging is optional
+        
+        return response
+    
+    except Exception as e:
+        print(f"✗ Error exporting history: {e}")
+        flash(f'Error exporting history: {str(e)}', 'danger')
+        return redirect(url_for('patient_history_dashboard', patient_id=patient_id))
+
+
+# ================================
+# AI Output Review & Approval (UC-05 - Thanh Le)
+# Doctor approval workflow with safety validation
+# ================================
+
+@app.route('/review/pending')
+@login_required
+@role_required('doctor', 'admin')
+def pending_ai_reviews():
+    """
+    Queue of AI outputs pending doctor review
+    UC-05: Main entry point for review workflow
+    """
+    pending_ids = get_pending_reviews()
+    
+    # Load analysis results for pending reviews
+    pending_analyses = []
+    for analysis_id in pending_ids:
+        result = get_analysis_result(analysis_id)
+        if result:
+            # Create review package
+            review_package = create_review_package(result)
+            pending_analyses.append(review_package)
+    
+    return render_template('pending_ai_reviews.html',
+                         pending_analyses=pending_analyses,
+                         count=len(pending_analyses))
+
+
+@app.route('/review/<analysis_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('doctor', 'admin')
+def review_ai_output(analysis_id):
+    """
+    Doctor reviews AI-generated medical content
+    UC-05: Main review interface
+    """
+    # Get analysis result
+    result = get_analysis_result(analysis_id)
+    if not result:
+        flash('Analysis not found.', 'danger')
+        return redirect(url_for('pending_ai_reviews'))
+    
+    # Create review package
+    review_package = create_review_package(result)
+    
+    if request.method == 'POST':
+        from uuid import uuid4
+        
+        # Create approval decision
+        decision = ApprovalDecision(
+            decision_id=str(uuid4()),
+            analysis_id=analysis_id,
+            reviewer_id=current_user.id,
+            reviewer_name=current_user.get_display_name()
+        )
+        
+        # Parse form data
+        decision.status = ApprovalStatus(request.form.get('status', 'pending'))
+        decision.notes = request.form.get('notes', '')
+        decision.reviewed_fhir = request.form.get('reviewed_fhir') == 'on'
+        decision.reviewed_summary = request.form.get('reviewed_summary') == 'on'
+        decision.reviewed_safety = request.form.get('reviewed_safety') == 'on'
+        
+        # Handle safety overrides
+        override_flags = request.form.getlist('override_flags')
+        for flag_id in override_flags:
+            justification = request.form.get(f'justification_{flag_id}', '')
+            if justification:
+                decision.safety_overrides.append(flag_id)
+                # In production, save justification to SafetyFlag object
+        
+        # Handle modifications
+        if request.form.get('has_modifications') == 'on':
+            modification_text = request.form.get('modification_text', '')
+            if modification_text:
+                decision.modifications.append({
+                    'timestamp': datetime.now().isoformat(),
+                    'text': modification_text
+                })
+        
+        # Validate approval
+        is_valid, error_msg = validate_approval(review_package, decision)
+        
+        if not is_valid:
+            flash(f'Approval validation failed: {error_msg}', 'danger')
+            return render_template('review_ai_output.html',
+                                 review=review_package,
+                                 analysis=result)
+        
+        # Generate digital signature for approval/rejection
+        if decision.status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
+            decision.digital_signature = generate_digital_signature(current_user.id, decision)
+            decision.signature_timestamp = datetime.now()
+        
+        # Check if escalation is needed
+        if review_package.overall_confidence < 0.7 and decision.status == ApprovalStatus.APPROVED:
+            if not decision.specialist_reviews:
+                # Auto-escalate low confidence cases
+                decision.status = ApprovalStatus.ESCALATED
+                decision.requires_specialist = True
+                flash('Case automatically escalated for specialist review due to low AI confidence.', 'warning')
+        
+        # Save decision
+        save_approval_decision(decision)
+        
+        # Flash message
+        if decision.status == ApprovalStatus.APPROVED:
+            flash('✓ AI output approved. Patient can now view this analysis.', 'success')
+            # In production, trigger notification to patient
+        elif decision.status == ApprovalStatus.REJECTED:
+            flash('AI output rejected. Analysis will not be released to patient.', 'info')
+        elif decision.status == ApprovalStatus.ESCALATED:
+            flash('Case escalated for specialist review.', 'warning')
+        else:
+            flash(f'Review saved with status: {decision.status.value}', 'info')
+        
+        return redirect(url_for('pending_ai_reviews'))
+    
+    return render_template('review_ai_output.html',
+                         review=review_package,
+                         analysis=result)
+
+
+@app.route('/review/history')
+@login_required
+@role_required('doctor', 'admin')
+def review_history():
+    """
+    View history of approval decisions
+    """
+    from approval_models import approval_decisions_storage
+    
+    # Get all decisions (in production, filter by user or date range)
+    decisions = list(approval_decisions_storage.values())
+    decisions.sort(key=lambda d: d.timestamp, reverse=True)
+    
+    return render_template('review_history.html', decisions=decisions)
+
+
+@app.route('/review/decision/<decision_id>')
+@login_required
+@role_required('doctor', 'admin')
+def view_approval_decision(decision_id):
+    """
+    View details of a specific approval decision
+    """
+    decision = get_approval_decision(decision_id)
+    
+    if not decision:
+        flash('Approval decision not found.', 'danger')
+        return redirect(url_for('review_history'))
+    
+    # Get associated analysis
+    analysis = get_analysis_result(decision.analysis_id)
+    
+    return render_template('approval_decision_detail.html',
+                         decision=decision,
+                         analysis=analysis)
+
+
+@app.route('/review/escalate/<analysis_id>', methods=['POST'])
+@login_required
+@role_required('doctor', 'admin')
+def escalate_review(analysis_id):
+    """
+    Escalate case for multi-physician review
+    UC-05: Extension Path 3 - Multi-Physician Review
+    """
+    result = get_analysis_result(analysis_id)
+    if not result:
+        return jsonify({'success': False, 'message': 'Analysis not found'}), 404
+    
+    reason = request.form.get('reason', 'Complex case requiring specialist input')
+    
+    review_package = create_review_package(result)
+    decision = escalate_for_review(review_package, current_user.id, reason)
+    
+    flash(f'Case escalated for specialist review. Decision ID: {decision.decision_id}', 'info')
+    return redirect(url_for('pending_ai_reviews'))
+
+
+# ================================
+# Financial Assistance & Loan Matching (UC-04 - Venkatesh Badri Narayanan)
+# Subsidy eligibility and financial assistance recommendations
+# ================================
+
+@app.route('/financial-assistance/<request_id>')
+@login_required
+@role_required('patient')
+def financial_assistance_from_quote(request_id):
+    """
+    Start financial assistance flow from insurance quote
+    UC-04: Entry point from quote results page
+    """
+    # Get the insurance quote request
+    quote_request = get_quote_request(request_id)
+    
+    if not quote_request:
+        flash('Insurance quote not found.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Verify user owns this request
+    if quote_request.user_id != current_user.id:
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if not quote_request.quotes:
+        flash('No quotes available for financial assistance calculation.', 'warning')
+        return redirect(url_for('request_insurance_quote'))
+    
+    # Extract financial profile from quote request
+    income_details = quote_request.income_details
+    
+    # Redirect to assistance form with pre-filled data
+    return redirect(url_for('request_financial_assistance', 
+                           from_quote=request_id,
+                           income=income_details.annual_income,
+                           dependents=income_details.dependents))
+
+
+@app.route('/financial-assistance/request', methods=['GET', 'POST'])
+@login_required
+@role_required('patient')
+def request_financial_assistance():
+    """
+    Financial assistance request form
+    UC-04: Collects/confirms financial data and calculates subsidies
+    """
+    # Check if coming from insurance quote
+    from_quote_id = request.args.get('from_quote')
+    pre_income = request.args.get('income', type=float)
+    pre_dependents = request.args.get('dependents', type=int, default=0)
+    
+    if request.method == 'POST':
+        try:
+            # Create financial profile from form
+            financial_profile = FinancialProfile(
+                annual_income=float(request.form.get('annual_income', 0)),
+                household_size=int(request.form.get('household_size', 1)),
+                state=request.form.get('state', 'NSW'),
+                employment_status=request.form.get('employment_status', 'employed'),
+                dependents=int(request.form.get('dependents', 0)),
+                has_medicare_card=request.form.get('has_medicare_card') == 'on',
+                has_health_care_card=request.form.get('has_health_care_card') == 'on',
+                pensioner=request.form.get('pensioner') == 'on',
+                student=request.form.get('student') == 'on',
+                credit_score=int(request.form.get('credit_score', 0)) or None
+            )
+            
+            # Get selected plan cost
+            selected_plan_cost = float(request.form.get('monthly_premium', 0))
+            selected_plan_id = request.form.get('plan_id', '')
+            
+            if selected_plan_cost <= 0:
+                flash('Please provide a valid monthly premium cost.', 'danger')
+                return render_template('financial_assistance_form.html',
+                                     from_quote_id=from_quote_id,
+                                     pre_income=pre_income,
+                                     pre_dependents=pre_dependents)
+            
+            # Create assistance recommendation
+            recommendation = create_assistance_recommendation(
+                financial_profile=financial_profile,
+                user_id=current_user.id,
+                original_monthly_cost=selected_plan_cost,
+                selected_plan_id=selected_plan_id
+            )
+            
+            print(f"✓ Financial assistance recommendation created: {recommendation.request_id}")
+            print(f"   Total subsidies: ${recommendation.total_monthly_subsidy:.2f}/month")
+            print(f"   Affordability: {recommendation.affordability_score.rating}")
+            
+            flash(f'✓ Subsidy eligibility calculated! Found {len(recommendation.subsidies)} applicable subsidies.', 'success')
+            
+            return redirect(url_for('view_assistance_recommendation', 
+                                   recommendation_id=recommendation.request_id,
+                                   from_quote=from_quote_id))
+        
+        except Exception as e:
+            print(f"✗ Error processing financial assistance: {e}")
+            import traceback
+            traceback.print_exc()
+            flash(f'An error occurred: {str(e)}', 'danger')
+    
+    return render_template('financial_assistance_form.html',
+                         from_quote_id=from_quote_id,
+                         pre_income=pre_income,
+                         pre_dependents=pre_dependents)
+
+
+@app.route('/financial-assistance/recommendation/<recommendation_id>')
+@login_required
+@role_required('patient')
+def view_assistance_recommendation(recommendation_id):
+    """
+    Display financial assistance recommendation with subsidies and options
+    UC-04: Main results page showing cost breakdown and assistance options
+    """
+    recommendation = get_assistance_recommendation(recommendation_id)
+    
+    if not recommendation:
+        flash('Assistance recommendation not found.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Verify user owns this recommendation
+    if recommendation.user_id != current_user.id:
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Check if coming from quote
+    from_quote_id = request.args.get('from_quote')
+    quote_request = None
+    if from_quote_id:
+        quote_request = get_quote_request(from_quote_id)
+    
+    return render_template('financial_assistance_results.html',
+                         recommendation=recommendation,
+                         quote_request=quote_request,
+                         from_quote_id=from_quote_id)
+
+
+@app.route('/financial-assistance/export/<recommendation_id>')
+@login_required
+@role_required('patient')
+def export_assistance_recommendation(recommendation_id):
+    """
+    Export assistance recommendation as JSON
+    UC-04: Export for records
+    """
+    recommendation = get_assistance_recommendation(recommendation_id)
+    
+    if not recommendation:
+        flash('Recommendation not found.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Verify user owns this recommendation
+    if recommendation.user_id != current_user.id:
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Return as JSON download
+    from flask import make_response
+    response = make_response(json.dumps(recommendation.to_dict(), indent=2, default=str))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename=financial_assistance_{recommendation_id}.json'
     
     return response
 

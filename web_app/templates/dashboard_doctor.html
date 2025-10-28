@@ -60,12 +60,39 @@
 <!-- Main Actions -->
 <div class="row g-4 mb-4">
     <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-clipboard-check-fill"></i> Review AI Output (NEW)</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>UC-05: Review & Approve AI Output</strong></p>
+                <p class="small">Validate AI-generated medical content before patient release:</p>
+                <ul class="small">
+                    <li>Review FHIR data & summaries</li>
+                    <li>Validate safety flags</li>
+                    <li>Digital signature approval</li>
+                    <li>Multi-physician reviews</li>
+                    <li>Audit trail logging</li>
+                </ul>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-danger">
+                        <i class="bi bi-list-check"></i> View Pending Reviews
+                    </a>
+                    <a href="{{ url_for('review_history') }}" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-clock-history"></i> Review History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
         <div class="card h-100 shadow-sm border-primary">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="bi bi-file-medical-fill"></i> Clinical Record Analysis</h5>
             </div>
             <div class="card-body">
-                <p><strong>NEW: AI-Assisted Document Processing</strong></p>
+                <p><strong>AI-Assisted Document Processing</strong></p>
                 <p class="small">Complete AI pipeline for medical document analysis:</p>
                 <ul class="small">
                     <li>OCR text extraction</li>
@@ -87,24 +114,44 @@
     </div>
     
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-success">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-search"></i> Search Patient Records</h5>
+                <h5 class="mb-0"><i class="bi bi-clipboard2-pulse"></i> Patient History (NEW)</h5>
             </div>
             <div class="card-body">
-                <p>Search and review patient medical records:</p>
-                <div class="input-group mb-3">
-                    <input type="text" class="form-control" placeholder="Search by name or MRN...">
-                    <button class="btn btn-success" type="button">
-                        <i class="bi bi-search"></i> Search
+                <p><strong>UC-07: Longitudinal Patient History</strong></p>
+                <p class="small">View comprehensive patient history with timeline and trends:</p>
+                <ul class="small">
+                    <li>Aggregated medical data</li>
+                    <li>Interactive timeline</li>
+                    <li>Trend analysis</li>
+                    <li>Data quality assessment</li>
+                    <li>Gap detection</li>
+                </ul>
+                <div class="input-group mb-2">
+                    <input type="text" id="patient-search" class="form-control form-control-sm" placeholder="Enter patient ID..." value="patient1">
+                    <button class="btn btn-success btn-sm" onclick="viewPatientHistory()">
+                        <i class="bi bi-search"></i> View
                     </button>
                 </div>
-                <a href="#" class="btn btn-outline-success">
-                    <i class="bi bi-list-ul"></i> View All Patients
-                </a>
+                <p class="small text-muted mb-0">
+                    <i class="bi bi-info-circle"></i> Try: patient1, patient2, patient3
+                </p>
             </div>
         </div>
     </div>
+    
+<script>
+function viewPatientHistory() {
+    const patientId = document.getElementById('patient-search').value;
+    if (patientId) {
+        window.location.href = '/patient-history/' + patientId;
+    }
+}
+document.getElementById('patient-search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') viewPatientHistory();
+});
+</script>
     
     <div class="col-md-4">
         <div class="card h-100 shadow-sm border-warning">

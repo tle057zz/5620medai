@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Timeline - {{ patient_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline-event {
+    border-left: 3px solid #ddd;
+    padding-left: 15px;
+    margin-bottom: 20px;
+    position: relative;
+}
+.timeline-event::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 0;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid;
+}
+.timeline-event.condition::before { border-color: #dc3545; }
+.timeline-event.medication::before { border-color: #28a745; }
+.timeline-event.observation::before { border-color: #17a2b8; }
+.timeline-event.procedure::before { border-color: #ffc107; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="display-6 mb-2">
+                                <i class="bi bi-clock-history text-primary"></i> Medical Timeline
+                            </h1>
+                            <p class="text-muted mb-0">
+                                Patient: <strong>{{ patient_id }}</strong> | Period: {{ date_range }}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('patient_history_dashboard', patient_id=patient_id) }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to History
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Options -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="btn-group" role="group">
+                        <input type="checkbox" class="btn-check" id="filter-all" checked autocomplete="off">
+                        <label class="btn btn-outline-primary" for="filter-all">All Events</label>
+                        
+                        <input type="checkbox" class="btn-check" id="filter-conditions" checked autocomplete="off">
+                        <label class="btn btn-outline-danger" for="filter-conditions">Conditions</label>
+                        
+                        <input type="checkbox" class="btn-check" id="filter-medications" checked autocomplete="off">
+                        <label class="btn btn-outline-success" for="filter-medications">Medications</label>
+                        
+                        <input type="checkbox" class="btn-check" id="filter-observations" checked autocomplete="off">
+                        <label class="btn btn-outline-info" for="filter-observations">Observations</label>
+                        
+                        <input type="checkbox" class="btn-check" id="filter-procedures" checked autocomplete="off">
+                        <label class="btn btn-outline-warning" for="filter-procedures">Procedures</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-diagram-3-fill"></i> Chronological Medical Events ({{ timeline|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if timeline %}
+                    <div class="timeline-container">
+                        {% for event in timeline %}
+                        <div class="timeline-event {{ event.type }}" data-type="{{ event.type }}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="bi bi-{{ event.icon }} text-{{ event.color }}"></i>
+                                        {{ event.text }}
+                                    </h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-{{ event.color }}">{{ event.type|title }}</span>
+                                        {% if event.status %}
+                                        <span class="badge bg-secondary">{{ event.status|title }}</span>
+                                        {% endif %}
+                                        {% if event.dosage %}
+                                        <span class="badge bg-info">{{ event.dosage }}</span>
+                                        {% endif %}
+                                        {% if event.value %}
+                                        <span class="badge bg-success">Value: {{ event.value }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    {{ event.date[:10] if event.date else 'Unknown date' }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-5">No timeline events available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('patient_history_dashboard', patient_id=patient_id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Simple filter functionality
+document.querySelectorAll('[id^="filter-"]').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const type = this.id.replace('filter-', '');
+        const events = document.querySelectorAll(`.timeline-event.${type}`);
+        
+        if (type === 'all') {
+            // Toggle all
+            const checked = this.checked;
+            document.querySelectorAll('.timeline-event').forEach(el => {
+                el.style.display = checked ? 'block' : 'none';
+            });
+            document.querySelectorAll('[id^="filter-"]:not(#filter-all)').forEach(cb => {
+                cb.checked = checked;
+            });
+        } else {
+            // Toggle specific type
+            events.forEach(el => {
+                el.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
+
