@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case: Analyze Patient Medical Record</title>
+<style>
+  :root { --bg:#0a101f; --card:#121a36; --text:#eaf0ff; --muted:#a1afd6; --accent:#8ca8ff; }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;
+       background:linear-gradient(180deg,#080c18 0%, #0b1020 100%); color:var(--text); margin:0; padding:2rem;}
+  .container{max-width:960px; margin:0 auto;}
+  header h1{margin:0 0 .25rem 0; font-size:2rem;}
+  header p{color:var(--muted); margin:0 0 1rem 0}
+  .card{background:rgba(18,26,54,.8); border:1px solid rgba(122,162,255,.2); border-radius:16px; padding:1.25rem; margin:1rem 0}
+  h2{font-size:1.25rem; margin:.25rem 0 .75rem 0; color:#cfe1ff}
+  h3{font-size:1.05rem; margin:.75rem 0 .5rem 0; color:#bfd0ff}
+  table{width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden}
+  th,td{border:1px solid rgba(122,162,255,.2); padding:.6rem .7rem; vertical-align:top}
+  th{background:rgba(122,162,255,.08); color:#d7e5ff; text-align:left}
+  code,kbd{background:rgba(122,162,255,.12); border:1px solid rgba(122,162,255,.25); padding:.1rem .35rem; border-radius:6px}
+  ol,ul{margin:.3rem 0 .7rem 1.2rem}
+  li{margin:.35rem 0}
+  .small{color:var(--muted); font-size:.9rem}
+  .tag{display:inline-block; padding:.15rem .45rem; border:1px solid rgba(122,162,255,.3); border-radius:999px; margin-right:.35rem; font-size:.8rem; color:#d9e6ff}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Analyze Patient Medical Record (Use Case)</h1>
+    <p class="small">Based on Use Case Specification 2 (UC‑06) — authored by Sahhir Khan</p>
+    <div>
+      <span class="tag">AI‑Assisted</span>
+      <span class="tag">Healthcare</span>
+      <span class="tag">Patient Data</span>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Overview</h2>
+    <table>
+      <thead>
+        <tr><th>Attribute</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Name</strong></td><td>Analyze Patient Medical Record</td></tr>
+        <tr><td><strong>Goal</strong></td><td>Process and explain a medical record using AI</td></tr>
+        <tr><td><strong>Actor</strong></td><td>Patient or Doctor</td></tr>
+        <tr><td><strong>Pre‑condition</strong></td><td>User is authenticated and uploads a supported file (PDF, JPG, or PNG)</td></tr>
+        <tr><td><strong>Trigger</strong></td><td>User uploads a file and clicks <kbd>Analyze</kbd></td></tr>
+        <tr><td><strong>Success Condition</strong></td><td>System returns structured medical data, plain‑language explanation, and safety alerts</td></tr>
+        <tr><td><strong>Failure Condition</strong></td><td>System errors during OCR, NER, entity linking, or explanation generation</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Main Scenario (Normal Flow)</h2>
+    <ol>
+      <li>User uploads the medical record.</li>
+      <li>System performs OCR to extract text from the uploaded document.</li>
+      <li>A sectionizer splits the extracted content into meaningful medical categories.</li>
+      <li>NER (Named Entity Recognition) identifies clinical entities such as problems, medications, allergies, and lab tests.</li>
+      <li>Entity linking maps recognized terms to standardized medical ontologies — <strong>ICD‑10‑AM</strong>, <strong>SNOMED</strong>, and <strong>RxNorm</strong>.</li>
+      <li>The AI model generates a patient‑friendly summary with a glossary and identified health risks.</li>
+      <li>A safety analysis module detects red flags (e.g., contraindications or emergency symptoms).</li>
+      <li>The system outputs structured results to the user: <code>summary_md</code>, <code>risks_md</code>, <code>safety_flags_json</code>, <code>fhir_data</code>.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Alternate Scenarios (Exception Handling)</h2>
+    <ol>
+      <li><strong>OCR Failure:</strong> System cannot read the file → shows error and prompts the user to upload a clearer document.</li>
+      <li><strong>Low Entity Confidence:</strong> If extracted entities have low confidence scores → system warns the user and allows manual review.</li>
+      <li><strong>Safety Check Failure:</strong> If AI safety validation fails → system falls back to deterministic (rule‑based) safety checks.</li>
+      <li><strong>LLM Timeout or Failure:</strong> If the large language model fails or times out → system retries once, then notifies user of failure.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Interpretation Summary</h2>
+    <p>This use case defines how the system leverages <strong>AI and NLP pipelines</strong> to transform an uploaded medical document into a structured, explainable output. It ensures medical information becomes interpretable for both doctors and patients, while maintaining compliance and safety through layered validation steps.</p>
+    <ul>
+      <li><strong>Core Components:</strong> OCR engine, Sectionizer, NER, Entity Linking, Summary Generator, Safety Module.</li>
+      <li><strong>Outputs:</strong> JSON + Markdown summaries compatible with FHIR and clinical formats.</li>
+      <li><strong>Key Strength:</strong> Converts complex medical records into actionable, plain‑language insights.</li>
+      <li><strong>Reliability Mechanisms:</strong> Error handling, fallback rules, and user feedback loops ensure robustness.</li>
+    </ul>
+  </section>
+
+  <footer class="card">
+    <p class="small">Generated from visual specification. Ready for inclusion in documentation, SRS, or software design deliverables.</p>
+  </footer>
+</div>
+</body>
+</html>

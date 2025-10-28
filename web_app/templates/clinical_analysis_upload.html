@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Clinical Record Analysis - AI Medical Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h1 class="display-6 mb-2">
+                        <i class="bi bi-file-medical-fill text-primary"></i> 
+                        AI-Assisted Clinical Record Analysis
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Upload medical documents for comprehensive AI analysis: OCR → NER → FHIR Mapping → Explanation → Safety Checks
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not pipeline_available %}
+    <!-- Warning: Pipeline Not Available -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning shadow-sm" role="alert">
+                <h5 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill"></i> AI Pipeline Not Available
+                </h5>
+                <p class="mb-0">
+                    The AI medical pipeline is currently unavailable. Please contact your system administrator to enable this feature.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Feature Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3-fill"></i> AI Pipeline Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">1</div>
+                                <div>
+                                    <h6 class="mb-1">OCR Text Extraction</h6>
+                                    <small class="text-muted">Extract clean text from PDFs/images</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">2</div>
+                                <div>
+                                    <h6 class="mb-1">Clinical Sectionization</h6>
+                                    <small class="text-muted">Structure into clinical sections</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">3</div>
+                                <div>
+                                    <h6 class="mb-1">NER Entity Extraction</h6>
+                                    <small class="text-muted">Identify conditions, medications, labs</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">4</div>
+                                <div>
+                                    <h6 class="mb-1">Entity Linking</h6>
+                                    <small class="text-muted">Map to SNOMED/RxNorm/LOINC codes</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">5</div>
+                                <div>
+                                    <h6 class="mb-1">FHIR Mapping</h6>
+                                    <small class="text-muted">Generate FHIR R4 bundle</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-primary rounded-pill me-3">6</div>
+                                <div>
+                                    <h6 class="mb-1">Explanation Generation</h6>
+                                    <small class="text-muted">Patient-friendly summaries</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="d-flex align-items-start">
+                                <div class="badge bg-danger rounded-pill me-3">7</div>
+                                <div>
+                                    <h6 class="mb-1">Safety & Red Flag Detection</h6>
+                                    <small class="text-muted">Identify contraindications, drug interactions, emergencies</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="row mb-4">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-cloud-upload-fill"></i> Upload Medical Document</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Document Upload -->
+                        <div class="mb-4">
+                            <label for="{{ form.medical_document.id }}" class="form-label fw-bold">
+                                {{ form.medical_document.label.text }}
+                            </label>
+                            {{ form.medical_document(class="form-control form-control-lg") }}
+                            {% if form.medical_document.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.medical_document.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Supported formats: PDF, TXT, JPG, PNG (Max 16MB)</small>
+                        </div>
+
+                        <!-- Document Type -->
+                        <div class="mb-4">
+                            <label for="{{ form.document_type.id }}" class="form-label fw-bold">
+                                {{ form.document_type.label.text }}
+                            </label>
+                            {{ form.document_type(class="form-select") }}
+                        </div>
+
+                        <!-- Patient Name -->
+                        <div class="mb-4">
+                            <label for="{{ form.patient_name.id }}" class="form-label">
+                                {{ form.patient_name.label.text }}
+                            </label>
+                            {{ form.patient_name(class="form-control", placeholder="Leave blank to auto-extract from document") }}
+                            <small class="text-muted">The AI will attempt to extract the patient name from the document</small>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            <label for="{{ form.notes.id }}" class="form-label">
+                                {{ form.notes.label.text }}
+                            </label>
+                            {{ form.notes(class="form-control", rows="3", placeholder="Optional: Add context or specific questions") }}
+                        </div>
+
+                        <!-- Consent Section -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h6 class="mb-3">Consent & Privacy</h6>
+                            
+                            <div class="form-check mb-2">
+                                {{ form.consent_ai_processing(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.consent_ai_processing.id }}">
+                                    {{ form.consent_ai_processing.label.text }}
+                                </label>
+                                {% if form.consent_ai_processing.errors %}
+                                    <div class="text-danger small">
+                                        {{ form.consent_ai_processing.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="form-check">
+                                {{ form.consent_data_storage(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.consent_data_storage.id }}">
+                                    {{ form.consent_data_storage.label.text }}
+                                </label>
+                                {% if form.consent_data_storage.errors %}
+                                    <div class="text-danger small">
+                                        {{ form.consent_data_storage.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-3 p-2 bg-white rounded border">
+                                <small class="text-muted">
+                                    <i class="bi bi-shield-check text-success"></i>
+                                    <strong>Privacy Assurance:</strong> Your document is processed locally using AI models. 
+                                    No data is sent to external servers. All processed data is automatically deleted after 24 hours.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary btn-lg", disabled=not pipeline_available) }}
+                            <a href="{{ url_for('clinical_analysis_history') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-clock-history"></i> View Analysis History
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Information -->
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="bi bi-info-circle-fill"></i> What You'll Get:</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><i class="bi bi-check2-circle text-success"></i> Structured FHIR R4 bundle with all extracted data</li>
+                        <li class="mb-2"><i class="bi bi-check2-circle text-success"></i> Patient-friendly explanation of medical findings</li>
+                        <li class="mb-2"><i class="bi bi-check2-circle text-success"></i> Identified conditions with SNOMED codes</li>
+                        <li class="mb-2"><i class="bi bi-check2-circle text-success"></i> Medications mapped to RxNorm/SNOMED</li>
+                        <li class="mb-2"><i class="bi bi-check2-circle text-success"></i> Lab results and observations with LOINC codes</li>
+                        <li class="mb-2"><i class="bi bi-check2-circle text-danger"></i> <strong>Red flag alerts</strong> for drug interactions, contraindications, and emergencies</li>
+                        <li class="mb-0"><i class="bi bi-check2-circle text-success"></i> Downloadable reports in FHIR and JSON formats</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

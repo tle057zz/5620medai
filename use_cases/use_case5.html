@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case: Financial Assistance with Loan Matching (UC‑04)</title>
+<style>
+  body {font-family: Arial, sans-serif; background: #0b1020; color: #eaf0ff; line-height: 1.6; padding: 2rem;}
+  h1, h2, h3 {color: #b3c7ff;}
+  table {width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;}
+  th, td {border: 1px solid #3a4a70; padding: 8px; text-align: left;}
+  th {background: #1a2340;}
+  section {background: #121a36; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;}
+  ul, ol {margin-left: 1.5rem;}
+</style>
+</head>
+<body>
+<h1>Financial Assistance with Loan Matching (UC‑04)</h1>
+<p><strong>Author:</strong> Venkatesh Badri Narayanan</p>
+
+<section>
+<h2>Overview</h2>
+<table>
+<tr><th>Name</th><td>Financial Assistance with Loan Matching</td></tr>
+<tr><th>Goal</th><td>Find suitable financial assistance and loan options for patients based on eligibility and preferences.</td></tr>
+<tr><th>Level</th><td>User</td></tr>
+<tr><th>Pre‑condition</th><td>Financial profile provided; consent recorded.</td></tr>
+<tr><th>Trigger</th><td>Patient requests financial assistance.</td></tr>
+<tr><th>Success Condition</th><td>Matching financial options presented with personalized recommendations.</td></tr>
+<tr><th>Failure Condition</th><td>No suitable options found; API or eligibility errors occur.</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Main Scenario</h2>
+<ol>
+<li>Patient starts Assistance Flow from insurance page.</li>
+<li>System checks subsidy eligibility and computes out‑of‑pocket costs.</li>
+<li>System compares plans and recommends suitable options.</li>
+<li>Patient views detailed cost breakdown and subsidy details.</li>
+<li>Patient selects a preferred plan with assistance or loan options.</li>
+<li>System exports summary for records and provides next steps.</li>
+</ol>
+</section>
+
+<section>
+<h2>Nested Paths</h2>
+<h3>1. Start Assistance Flow</h3>
+<ul>
+<li>User clicks <em>Get Financial Assistance</em> from the quote results page.</li>
+<li>System validates profile completeness (income, family size, coverage).</li>
+<li>Requests or confirms missing financial data.</li>
+<li>Displays available financial aid and loan programs.</li>
+</ul>
+
+<h3>2. Check Subsidy Eligibility</h3>
+<ul>
+<li>System queries government subsidy databases (Medicare, Medicaid, ACA).</li>
+<li>Calculates income‑based premium subsidies and cost‑sharing reductions.</li>
+<li>Checks state‑specific programs and computes total out‑of‑pocket cost.</li>
+<li>Generates affordability score for each plan.</li>
+</ul>
+
+<h3>3. Compare and Recommend Plans</h3>
+<ul>
+<li>Applies subsidy discounts and ranks plans by cost and value.</li>
+<li>Personalizes results based on medical conditions and usage patterns.</li>
+<li>Flags unsuitable or low‑coverage options.</li>
+<li>Provides rationale for top recommendations.</li>
+</ul>
+
+<h3>4. Display Cost Breakdown</h3>
+<ul>
+<li>Shows detailed cost comparison: premiums, deductibles, copays.</li>
+<li>Displays subsidies, remaining costs, and provider availability.</li>
+<li>Highlights trade‑offs between top plans for informed decisions.</li>
+</ul>
+
+<h3>5. Plan Selection</h3>
+<ul>
+<li>User selects preferred plan from recommendations.</li>
+<li>System initiates enrollment with insurer and applies for assistance.</li>
+<li>Generates confirmation and next‑step reminders.</li>
+</ul>
+
+<h3>6. Export and Audit</h3>
+<ul>
+<li>Generates selection summary with rationale and cost analysis.</li>
+<li>Logs assistance outcomes for compliance tracking.</li>
+<li>Sends confirmation emails and creates calendar reminders.</li>
+</ul>
+</section>
+
+<section>
+<h2>Extension Paths</h2>
+<h3>1. Human Advisor Consultation</h3>
+<ul>
+<li>Triggered when user requests expert help after subsidy calculation.</li>
+<li>Schedules consultation with licensed insurance advisor.</li>
+<li>Advisor provides personalized recommendations and enrollment help.</li>
+<li>System integrates updates into user’s plan record.</li>
+</ul>
+
+<h3>2. Doctor Review of Plan Selection</h3>
+<ul>
+<li>Triggered during cost review when user requests medical opinion.</li>
+<li>Doctor reviews coverage adequacy for user’s health conditions.</li>
+<li>System integrates doctor feedback into recommendations.</li>
+</ul>
+
+<h3>3. Family Plan Coordination</h3>
+<ul>
+<li>Triggered when user selects family coverage option.</li>
+<li>Expands analysis for all family members’ health needs.</li>
+<li>Calculates family subsidies and optimizes shared plans.</li>
+<li>Generates family‑specific recommendations.</li>
+</ul>
+</section>
+
+<section>
+<h2>Failure Paths</h2>
+<h3>Step 2 – Subsidy Eligibility Errors</h3>
+<ul>
+<li>Subsidy database unavailable → Proceed with unsubsidized comparison.</li>
+<li>Invalid income info → Prompt user for correction.</li>
+<li>User not eligible → Proceed with full‑cost comparison.</li>
+<li>Service timeout → Retry or use fallback calculations.</li>
+</ul>
+
+<h3>Step 3 – Plan Comparison Failures</h3>
+<ul>
+<li>No suitable plans found → Suggest alternate programs or advisor help.</li>
+<li>Plans exceed budget → Offer optimization and loan options.</li>
+<li>Conflicting data → Request insurer validation.</li>
+<li>AI engine failure → Fallback to rule‑based recommendations.</li>
+</ul>
+
+<h3>Step 5 – Selection Failures</h3>
+<ul>
+<li>Plan unavailable → Update info and require reconfirmation.</li>
+<li>Insurer system down → Queue enrollment manually.</li>
+<li>Financial aid rejected → Suggest alternative support options.</li>
+<li>Payment fails → Retry or suggest alternate methods.</li>
+</ul>
+</section>
+
+<section>
+<h2>Related Use Cases</h2>
+<ul>
+<li><strong>UC‑01:</strong> Request Insurance Quote – provides initial data.</li>
+<li><strong>UC‑03:</strong> Review AI Output & Approve – triggered for doctor review.</li>
+<li><strong>Login:</strong> User authentication required.</li>
+<li><strong>Update Profile:</strong> Triggered if financial info needs refreshing.</li>
+</ul>
+</section>
+
+<p><em>Detailed interpretation extracted and formatted for UC‑04 — Financial Assistance with Loan Matching. Suitable for technical documentation or SRS integration.</em></p>
+</body>
+</html>

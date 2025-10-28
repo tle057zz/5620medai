@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case: Review AI Output & Approve (UC‑05)</title>
+<style>
+  body {font-family: Arial, sans-serif; background: #0b1020; color: #eaf0ff; line-height: 1.6; padding: 2rem;}
+  h1, h2, h3 {color: #b3c7ff;}
+  table {width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;}
+  th, td {border: 1px solid #3a4a70; padding: 8px; text-align: left;}
+  th {background: #1a2340;}
+  section {background: #121a36; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;}
+  code {background: #1a2340; padding: 2px 6px; border-radius: 4px; color: #cfe1ff;}
+  ul, ol {margin-left: 1.5rem;}
+</style>
+</head>
+<body>
+<h1>Review AI Output & Approve (UC‑05)</h1>
+<p><strong>Author:</strong> Thanh Le</p>
+
+<section>
+<h2>Overview</h2>
+<table>
+<tr><th>Name</th><td>Review AI Output & Approve</td></tr>
+<tr><th>Goal</th><td>Validate AI-generated medical summaries, risk assessments, and safety flags before patient-visible release.</td></tr>
+<tr><th>Level</th><td>User</td></tr>
+<tr><th>Pre‑condition</th><td>Record processed; clinician authenticated; consent available.</td></tr>
+<tr><th>Trigger</th><td>Doctor opens patient case from dashboard or new AI output requires review.</td></tr>
+<tr><th>Success Condition</th><td>Approval recorded; audit logged; patient view updated if applicable.</td></tr>
+<tr><th>Failure Condition</th><td>Unsafe approval prevented; correction requested.</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Main Scenario</h2>
+<ol>
+<li>Doctor opens patient case from dashboard.</li>
+<li>System displays FHIR data, summary_md, risks_md, and safety_flags_json.</li>
+<li>Doctor reviews AI-generated summary and risk assessments.</li>
+<li>Doctor evaluates safety flags and contraindications.</li>
+<li>Doctor approves AI output or requests corrections.</li>
+<li>System records approval decision and updates patient view.</li>
+<li>System logs audit trail with clinician signature and timestamp.</li>
+</ol>
+</section>
+
+<section>
+<h2>Nested Paths</h2>
+<h3>1. Open Patient Case</h3>
+<ul>
+<li>System validates authentication and permissions.</li>
+<li>Loads patient data, history, and processing results.</li>
+<li>Displays case overview and lets doctor select case for AI review.</li>
+</ul>
+
+<h3>2. Display AI Output</h3>
+<ul>
+<li>System retrieves FHIR data and AI summaries (summary_md, risks_md).</li>
+<li>Shows safety flags with severity levels and rationale.</li>
+<li>Provides confidence scores and AI explanation traceability.</li>
+</ul>
+
+<h3>3. Review AI Summary</h3>
+<ul>
+<li>Doctor reviews structured data for completeness.</li>
+<li>Verifies AI-generated content accuracy and terminology.</li>
+<li>Checks for missing or misinterpreted details.</li>
+<li>Assesses clarity and clinical appropriateness.</li>
+</ul>
+
+<h3>4. Evaluate Safety Flags</h3>
+<ul>
+<li>Doctor reviews safety flags by severity (low to critical).</li>
+<li>Validates contraindications, drug interactions, and allergy conflicts.</li>
+<li>Evaluates emergency red flags and overrides AI safety calls if necessary.</li>
+</ul>
+
+<h3>5. Make Approval Decision</h3>
+<ul>
+<li>Doctor assesses AI output quality and safety.</li>
+<li>Approves, requests modifications, or rejects output.</li>
+<li>Adds notes and signs off digitally.</li>
+</ul>
+
+<h3>6. Update Patient View</h3>
+<ul>
+<li>If approved, system releases AI content to patient portal.</li>
+<li>Updates notifications and applies doctor modifications.</li>
+<li>Maintains version control and triggers follow-up workflows.</li>
+</ul>
+
+<h3>7. Log Audit Trail</h3>
+<ul>
+<li>Records identity, timestamp, and rationale.</li>
+<li>Captures immutable audit data for compliance and reporting.</li>
+</ul>
+</section>
+
+<section>
+<h2>Extension Paths</h2>
+<h3>1. Critical Safety Flag Detected</h3>
+<ul>
+<li>System blocks unsafe approvals when critical flags exist.</li>
+<li>Doctor must justify override and obtain senior review.</li>
+<li>Logs decision for administrative review.</li>
+</ul>
+
+<h3>2. Request AI Re‑processing</h3>
+<ul>
+<li>Doctor flags errors in AI output for re‑execution.</li>
+<li>System re‑runs AI pipeline using doctor feedback.</li>
+<li>Improved output presented for validation.</li>
+</ul>
+
+<h3>3. Multi‑Physician Review</h3>
+<ul>
+<li>Case routed to specialists for second opinions.</li>
+<li>System consolidates feedback and audit trail.</li>
+<li>Primary doctor confirms final approval collaboratively.</li>
+</ul>
+</section>
+
+<section>
+<h2>Failure Paths</h2>
+<h3>Step 1 – Authorization Errors</h3>
+<ul>
+<li>Unauthorized access → Display access denied and guidance.</li>
+<li>Data corruption → Alert and recommend IT recovery.</li>
+<li>Database unavailability → Show maintenance notice.</li>
+<li>Expired consent → Block access until renewed.</li>
+</ul>
+
+<h3>Step 2 – Display Errors</h3>
+<ul>
+<li>AI output failed → Offer retry or manual review.</li>
+<li>Incomplete FHIR data → Highlight and request correction.</li>
+<li>Missing safety flags → Require manual validation.</li>
+<li>Low AI confidence → Warn and require re‑validation.</li>
+</ul>
+
+<h3>Step 5 – Approval Errors</h3>
+<ul>
+<li>Unresolved safety issues → Block approval until override granted.</li>
+<li>Digital signature system fails → Queue for later signing.</li>
+<li>Session timeout → Save draft and require re‑authentication.</li>
+<li>Policy conflict → Flag for administrative review.</li>
+</ul>
+
+<h3>Step 6 – Update Errors</h3>
+<ul>
+<li>Patient portal unavailable → Queue release and notify patient.</li>
+<li>Modification system fails → Revert to original content.</li>
+<li>Version control failure → Backup and alert IT.</li>
+<li>Workflow failure → Log and allow manual execution.</li>
+</ul>
+</section>
+
+<section>
+<h2>Safety & Compliance Requirements</h2>
+<ul>
+<li>All AI outputs must be reviewed by a licensed clinician before patient release.</li>
+<li>Critical safety flags must block unsafe approvals with mandatory overrides.</li>
+<li>Audit trail must be immutable and complete.</li>
+<li>Digital signatures required for all approvals.</li>
+<li>Multi‑physician review mandatory for complex or high‑risk cases.</li>
+</ul>
+</section>
+
+<section>
+<h2>Related Use Cases</h2>
+<ul>
+<li><strong>UC‑01:</strong> Upload Medical Record</li>
+<li><strong>UC‑04:</strong> Medical Records Analysis</li>
+<li><strong>UC‑05:</strong> Patient History Documentation</li>
+<li><strong>Login:</strong> Doctor authentication for review access</li>
+<li><strong>Audit Reporting:</strong> Data for compliance and admin monitoring</li>
+</ul>
+</section>
+
+<p><em>Generated detailed HTML summary for UC‑05 — Review AI Output & Approve. Suitable for SRS and compliance documentation.</em></p>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case: Patient History Documentation and Summarization (UC-07)</title>
+<style>
+  body {font-family: Arial, sans-serif; background: #0b1020; color: #eaf0ff; line-height: 1.6; padding: 2rem;}
+  h1, h2, h3 {color: #b3c7ff;}
+  table {width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;}
+  th, td {border: 1px solid #3a4a70; padding: 8px; text-align: left;}
+  th {background: #1a2340;}
+  section {background: #121a36; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;}
+  code {background: #1a2340; padding: 2px 6px; border-radius: 4px; color: #cfe1ff;}
+  ul, ol {margin-left: 1.5rem;}
+</style>
+</head>
+<body>
+<h1>Patient History Documentation and Summarization (UC‑07)</h1>
+<p><strong>Author:</strong> Sarvadnya Kamble</p>
+
+<section>
+<h2>Overview</h2>
+<table>
+<tr><th>Name</th><td>Patient History Documentation and Summarization</td></tr>
+<tr><th>Goal</th><td>Compile longitudinal patient history and generate a consolidated medical summary with trend analysis.</td></tr>
+<tr><th>Level</th><td>User</td></tr>
+<tr><th>Pre-condition</th><td>Prior records available; consent granted; clinician authenticated.</td></tr>
+<tr><th>Trigger</th><td>Doctor requests patient history view from case dashboard.</td></tr>
+<tr><th>Success Condition</th><td>Timeline and summary produced; data gaps highlighted; audit logged.</td></tr>
+<tr><th>Failure Condition</th><td>Missing data; ambiguous mappings; or service errors.</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Main Scenario</h2>
+<ol>
+<li>Doctor requests a comprehensive patient history view.</li>
+<li>System aggregates prior FHIR resources from all records.</li>
+<li>System identifies medical trends, patterns, and progression over time.</li>
+<li>System detects gaps and inconsistencies in medical history.</li>
+<li>System generates a consolidated longitudinal summary.</li>
+<li>System creates an interactive timeline visualization.</li>
+<li>System presents results in the case dashboard with actionable insights.</li>
+</ol>
+</section>
+
+<section>
+<h2>Timeline and Trend Analysis</h2>
+<h3>Timeline Analysis:</h3>
+<p>Chronological progression of conditions, medications, lab results, procedures, and vital signs.</p>
+<h3>Trend Detection:</h3>
+<p>Identifies improving or declining health patterns, medication effectiveness, and treatment response.</p>
+</section>
+
+<section>
+<h2>Nested Paths (Derived Use Cases)</h2>
+<ul>
+<li><strong>Access Patient Longitudinal Data:</strong> Authenticated doctor accesses historical data and consent verification.</li>
+<li><strong>Collect Historical Medical Data:</strong> Aggregates FHIR resources (labs, vitals, conditions, medications, procedures).</li>
+<li><strong>Analyze Medical Progression:</strong> Applies time-series analysis and pattern recognition.</li>
+<li><strong>Quality Assurance & Data Validation:</strong> Detects data gaps, inconsistencies, and coordination issues.</li>
+<li><strong>Create Comprehensive Medical Summary:</strong> Generates summaries and recommendations for care improvement.</li>
+<li><strong>Generate Interactive Medical Timeline:</strong> Produces interactive visualizations and drill-down options.</li>
+<li><strong>Display Comprehensive History Dashboard:</strong> Presents summaries with actionable insights and export options.</li>
+</ul>
+</section>
+
+<section>
+<h2>Extension Paths</h2>
+<h3>1. Missing Historical Data</h3>
+<p><strong>Trigger:</strong> During FHIR aggregation, system detects missing data.</p>
+<ul>
+<li>Flags incomplete medical records.</li>
+<li>Identifies external sources and requests patient authorization.</li>
+<li>Proceeds with available data while indicating limitations.</li>
+</ul>
+
+<h3>2. Critical Trend Detection</h3>
+<p><strong>Trigger:</strong> During trend analysis, system identifies concerning health patterns.</p>
+<ul>
+<li>Flags deteriorating health trends requiring attention.</li>
+<li>Detects treatment failures and drug interactions.</li>
+<li>Generates urgent care alerts and recommendations.</li>
+</ul>
+
+<h3>3. Data Inconsistency Resolution</h3>
+<ul>
+<li>Presents conflicting data with source attribution.</li>
+<li>Applies resolution algorithms and requests doctor input.</li>
+<li>Maintains version history for conflict resolutions.</li>
+</ul>
+
+<h3>4. Custom Timeline Views</h3>
+<ul>
+<li>Doctor configures specific focus parameters.</li>
+<li>System generates personalized, shareable views.</li>
+</ul>
+</section>
+
+<section>
+<h2>Failure Paths</h2>
+<h3>Step 1: Authorization & Consent</h3>
+<ul>
+<li>Unauthorized access → System denies with guidance.</li>
+<li>Consent revoked → System blocks access and requests renewal.</li>
+<li>No records → Suggest initial upload.</li>
+<li>Database unavailable → Show maintenance message.</li>
+</ul>
+
+<h3>Step 2: Data Aggregation Failures</h3>
+<ul>
+<li>Corrupted FHIR data → Skip and flag for repair.</li>
+<li>Normalization issues → Present separately for manual review.</li>
+<li>Timeouts → Implement pagination.</li>
+<li>Unavailable sources → Use cached data.</li>
+</ul>
+
+<h3>Step 3: Trend Analysis Errors</h3>
+<ul>
+<li>Insufficient data points → Display limited analysis.</li>
+<li>Conflicting patterns → Request doctor review.</li>
+<li>Time irregularities → Apply interpolation and flag.</li>
+<li>ML models unavailable → Fallback to rule-based analysis.</li>
+</ul>
+
+<h3>Step 5: Summary Generation Errors</h3>
+<ul>
+<li>Timeout → Generate in sections.</li>
+<li>Language failure → Use template-based summary.</li>
+<li>Too complex → Produce executive summary.</li>
+<li>Privacy restriction → Limit and flag content.</li>
+</ul>
+
+<h3>Step 7: Dashboard Display Failures</h3>
+<ul>
+<li>Rendering issue → Simplify view.</li>
+<li>Interactivity error → Provide static backup.</li>
+<li>Export failure → Offer manual copy.</li>
+<li>Performance issue → Enable caching and load balancing.</li>
+</ul>
+</section>
+
+<section>
+<h2>Data Integration and Quality Requirements</h2>
+<ul>
+<li>Support multiple FHIR versions and EHR formats.</li>
+<li>Ensure normalization and consistent terminology mapping.</li>
+<li>Maintain data provenance and source attribution.</li>
+<li>Apply conflict resolution and ensure privacy compliance.</li>
+</ul>
+
+<h3>Related Use Cases</h3>
+<ul>
+<li>UC‑04: Medical Records Analysis & Reporting</li>
+<li>UC‑03: Review AI Output & Approve</li>
+<li>UC‑01: Upload Medical Record</li>
+<li>Login: Doctor authentication</li>
+<li>Consent Management: For longitudinal data aggregation</li>
+</ul>
+</section>
+
+<p><em>Generated from detailed specification. Suitable for SRS documentation.</em></p>
+</body>
+</html>

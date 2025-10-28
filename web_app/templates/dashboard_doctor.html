@@ -60,21 +60,28 @@
 <!-- Main Actions -->
 <div class="row g-4 mb-4">
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-primary">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-upload"></i> Upload Medical Document</h5>
+                <h5 class="mb-0"><i class="bi bi-file-medical-fill"></i> Clinical Record Analysis</h5>
             </div>
             <div class="card-body">
-                <p>Upload and process medical documents through our AI pipeline:</p>
-                <ul>
+                <p><strong>NEW: AI-Assisted Document Processing</strong></p>
+                <p class="small">Complete AI pipeline for medical document analysis:</p>
+                <ul class="small">
                     <li>OCR text extraction</li>
-                    <li>Clinical entity recognition</li>
-                    <li>FHIR-compliant data mapping</li>
-                    <li>Safety risk analysis</li>
+                    <li>Clinical entity recognition (NER)</li>
+                    <li>FHIR R4 data mapping</li>
+                    <li>Safety risk & red flag detection</li>
+                    <li>Patient-friendly explanations</li>
                 </ul>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                    <i class="bi bi-cloud-upload"></i> Upload Document
-                </button>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('clinical_analysis') }}" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Analyze Document
+                    </a>
+                    <a href="{{ url_for('clinical_analysis_history') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-clock-history"></i> View History
+                    </a>
+                </div>
             </div>
         </div>
     </div>

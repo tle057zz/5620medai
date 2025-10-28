@@ -45,6 +45,48 @@ class UploadDocumentForm(FlaskForm):
     submit = SubmitField('Upload & Process')
 
 
+class ClinicalRecordAnalysisForm(FlaskForm):
+    """Form for AI-Assisted Clinical Record Analysis (Saahir Khan feature)"""
+    medical_document = FileField('Upload Medical Document',
+                                validators=[
+                                    DataRequired('Please select a medical document to analyze'),
+                                    FileAllowed(['pdf', 'txt', 'jpg', 'jpeg', 'png'], 
+                                               'Supported formats: PDF, TXT, or images (JPG, PNG)')
+                                ],
+                                render_kw={'accept': '.pdf,.txt,.jpg,.jpeg,.png'})
+    
+    document_type = SelectField('Document Type',
+                               choices=[
+                                   ('medical_report', 'Medical Report'),
+                                   ('lab_results', 'Lab Results'),
+                                   ('prescription', 'Prescription'),
+                                   ('discharge_summary', 'Discharge Summary'),
+                                   ('imaging_report', 'Imaging Report'),
+                                   ('pathology', 'Pathology Report'),
+                                   ('consultation', 'Consultation Notes'),
+                                   ('other', 'Other')
+                               ],
+                               validators=[DataRequired()])
+    
+    patient_name = StringField('Patient Name (Optional)',
+                              render_kw={'placeholder': 'Leave blank to auto-extract from document'})
+    
+    consent_ai_processing = BooleanField(
+        'I consent to AI processing of this medical document',
+        validators=[DataRequired('You must consent to AI processing')]
+    )
+    
+    consent_data_storage = BooleanField(
+        'I consent to temporary storage of processed data (auto-deleted after 24 hours)',
+        validators=[DataRequired('You must consent to data storage')]
+    )
+    
+    notes = TextAreaField('Additional Notes',
+                         render_kw={'placeholder': 'Optional: Add context or specific questions', 'rows': 3})
+    
+    submit = SubmitField('Analyze Document with AI')
+
+
 class SearchPatientForm(FlaskForm):
     """Form for searching patients"""
     search_query = StringField('Search',

@@ -13,7 +13,7 @@ import json
 
 # Import our models and forms
 from models import User, get_user_by_username, example_users
-from forms import LoginForm, InsuranceQuoteForm
+from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm
 from insurance_models import (
     QuoteRequest, HealthData, MedicalHistory, IncomeDetails,
     save_quote_request, get_quote_request, get_user_quote_requests
@@ -25,6 +25,10 @@ from insurance_utils import (
 )
 from medical_document_processor import (
     process_uploaded_document, assess_medical_safety, AI_MEDICAL_AVAILABLE
+)
+from clinical_analysis_processor import (
+    process_clinical_document, save_analysis_result, get_analysis_result,
+    get_user_analysis_history, PIPELINE_AVAILABLE
 )
 from werkzeug.utils import secure_filename
 
@@ -672,6 +676,153 @@ def pending_doctor_reviews():
     
     return render_template('insurance_pending_reviews.html',
                           pending_requests=pending_requests)
+
+
+# ================================
+# Clinical Record Analysis Feature (Saahir Khan)
+# AI-Assisted Clinical Document Processing
+# ================================
+
+@app.route('/clinical-analysis', methods=['GET', 'POST'])
+@login_required
+@role_required('doctor', 'patient')
+def clinical_analysis():
+    """
+    AI-Assisted Clinical Record Analysis (Saahir Khan feature)
+    Upload medical documents for complete AI pipeline analysis:
+    OCR → Sectionizer → NER → Entity Linking → FHIR → Explanation → Safety Check
+    """
+    form = ClinicalRecordAnalysisForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Get uploaded file
+            uploaded_file = form.medical_document.data
+            if not uploaded_file or not uploaded_file.filename:
+                flash('Please select a medical document to analyze.', 'danger')
+                return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
+            
+            # Save uploaded file temporarily
+            filename = secure_filename(uploaded_file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            uploaded_file.save(file_path)
+            
+            print(f"\n✓ Processing clinical document: {filename}")
+            print(f"   Type: {form.document_type.data}")
+            print(f"   User: {current_user.username} ({current_user.role})")
+            
+            # Process document through complete AI pipeline
+            result = process_clinical_document(
+                file_path=file_path,
+                document_type=form.document_type.data,
+                patient_name=form.patient_name.data or None,
+                notes=form.notes.data or None
+            )
+            
+            # Clean up uploaded file
+            try:
+                os.remove(file_path)
+            except:
+                pass
+            
+            if result.success:
+                # Save result
+                analysis_id = save_analysis_result(result)
+                
+                flash(f'✓ Analysis complete! Identified {len(result.conditions)} conditions, {len(result.medications)} medications.', 'success')
+                
+                # Show warning if red flags detected
+                if result.red_flags:
+                    flash(f'⚠ WARNING: {len(result.red_flags)} red flag(s) detected. Please review carefully.', 'warning')
+                
+                return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+            else:
+                flash(f'⚠ Analysis failed: {result.error_message}', 'danger')
+                return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
+        
+        except Exception as e:
+            import traceback
+            print(f"✗ Error processing clinical document: {e}")
+            print(traceback.format_exc())
+            flash(f'An error occurred: {str(e)}', 'danger')
+            return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
+    
+    return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
+
+
+@app.route('/clinical-analysis/results/<analysis_id>')
+@login_required
+@role_required('doctor', 'patient')
+def clinical_analysis_results(analysis_id):
+    """
+    Display complete analysis results with all extracted data
+    """
+    result = get_analysis_result(analysis_id)
+    
+    if not result:
+        flash('Analysis not found.', 'danger')
+        return redirect(url_for('clinical_analysis'))
+    
+    # In production, verify user has permission to view this analysis
+    
+    return render_template('clinical_analysis_results.html', result=result)
+
+
+@app.route('/clinical-analysis/history')
+@login_required
+@role_required('doctor', 'patient')
+def clinical_analysis_history():
+    """
+    View history of clinical document analyses
+    """
+    # In production, filter by current user
+    history = get_user_analysis_history(current_user.id)
+    
+    return render_template('clinical_analysis_history.html', analyses=history)
+
+
+@app.route('/clinical-analysis/download/<analysis_id>/fhir')
+@login_required
+@role_required('doctor', 'patient', 'admin')
+def download_fhir_bundle(analysis_id):
+    """
+    Download FHIR R4 bundle as JSON
+    """
+    result = get_analysis_result(analysis_id)
+    
+    if not result or not result.fhir_bundle:
+        flash('FHIR bundle not found.', 'danger')
+        return redirect(url_for('clinical_analysis'))
+    
+    # Return as JSON download
+    from flask import make_response
+    response = make_response(json.dumps(result.fhir_bundle, indent=2))
+    response.headers['Content-Type'] = 'application/fhir+json'
+    response.headers['Content-Disposition'] = f'attachment; filename=fhir_bundle_{analysis_id}.json'
+    
+    return response
+
+
+@app.route('/clinical-analysis/download/<analysis_id>/report')
+@login_required
+@role_required('doctor', 'patient')
+def download_clinical_report(analysis_id):
+    """
+    Download complete analysis report as JSON
+    """
+    result = get_analysis_result(analysis_id)
+    
+    if not result:
+        flash('Analysis not found.', 'danger')
+        return redirect(url_for('clinical_analysis'))
+    
+    # Return as JSON download
+    from flask import make_response
+    response = make_response(json.dumps(result.to_dict(), indent=2, default=str))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename=clinical_analysis_{analysis_id}.json'
+    
+    return response
 
 
 # ================================

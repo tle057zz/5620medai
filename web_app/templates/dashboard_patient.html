@@ -82,40 +82,63 @@
     </div>
 </div>
 
-<!-- Insurance Quote Feature Card (NEW) -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-info">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Insurance Quote Service (NEW)</h5>
+<!-- AI Features Row -->
+<div class="row g-4 mb-4">
+    <!-- Clinical Record Analysis (NEW - Saahir Khan) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-primary h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-medical-fill"></i> Clinical Record Analysis (NEW)</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <h5>Get Personalized Insurance Quotes</h5>
-                        <p class="text-muted">
-                            Our AI-powered system analyzes your health data, medical history, and income details 
-                            to match you with the most suitable insurance products. Get ranked quotes based on 
-                            suitability, cost, and coverage.
-                        </p>
-                        <ul class="mb-3">
-                            <li>AI-driven risk assessment and product matching</li>
-                            <li>Personalized quotes ranked by suitability</li>
-                            <li>Compare coverage, costs, and benefits</li>
-                            <li>Download and share quotes with advisors</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <i class="bi bi-shield-fill-check display-1 text-info mb-3"></i>
-                        <div>
-                            <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-info btn-lg mb-2 d-block">
-                                <i class="bi bi-plus-circle"></i> Request Quote
-                            </a>
-                            <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-outline-info d-block">
-                                <i class="bi bi-clock-history"></i> View History
-                            </a>
-                        </div>
-                    </div>
+                <h5>AI-Assisted Document Analysis</h5>
+                <p class="text-muted">
+                    Upload your medical documents for comprehensive AI analysis. Get structured 
+                    FHIR data, patient-friendly explanations, and safety alerts.
+                </p>
+                <ul class="mb-3 small">
+                    <li>OCR text extraction from PDFs/images</li>
+                    <li>Entity recognition (conditions, medications, labs)</li>
+                    <li>FHIR R4 compliant data mapping</li>
+                    <li>Safety checks & red flag detection</li>
+                </ul>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('clinical_analysis') }}" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Analyze Document
+                    </a>
+                    <a href="{{ url_for('clinical_analysis_history') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-clock-history"></i> View History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Insurance Quote Service -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-info h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Insurance Quote Service</h5>
+            </div>
+            <div class="card-body">
+                <h5>Get Personalized Insurance Quotes</h5>
+                <p class="text-muted">
+                    Our AI-powered system analyzes your health data, medical history, and income details 
+                    to match you with the most suitable insurance products.
+                </p>
+                <ul class="mb-3 small">
+                    <li>AI-driven risk assessment and product matching</li>
+                    <li>Personalized quotes ranked by suitability</li>
+                    <li>Compare coverage, costs, and benefits</li>
+                    <li>Download and share quotes with doctors</li>
+                </ul>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-info">
+                        <i class="bi bi-plus-circle"></i> Request Quote
+                    </a>
+                    <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-outline-info">
+                        <i class="bi bi-clock-history"></i> View History
+                    </a>
                 </div>
             </div>
         </div>
