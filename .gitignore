@@ -21,3 +21,18 @@ Thumbs.db
 en_core_sci_sm*.tar.gz
 en_ner_bc5cdr_md*.tar.gz
 *.model.tar.gz
+
+# Database folder with sensitive credentials
+database/
+**/database/
+*.sql
+
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
+**/.env
+
+# Web app uploads
+web_app/uploads/
+**/uploads/
