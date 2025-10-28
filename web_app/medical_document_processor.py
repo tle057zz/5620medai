@@ -93,17 +93,66 @@ class MedicalDocumentProcessor:
             # Check file extension
             file_ext = os.path.splitext(file_path)[1].lower()
             
+            # Verify file exists and has content
+            if not os.path.exists(file_path):
+                return {
+                    'success': False,
+                    'error': f'File not found: {file_path}',
+                    'conditions': [],
+                    'medications': [],
+                    'procedures': [],
+                    'observations': {},
+                    'raw_text': ''
+                }
+            
+            file_size = os.path.getsize(file_path)
+            if file_size == 0:
+                return {
+                    'success': False,
+                    'error': 'Uploaded file is empty (0 bytes)',
+                    'conditions': [],
+                    'medications': [],
+                    'procedures': [],
+                    'observations': {},
+                    'raw_text': ''
+                }
+            
+            if verbose:
+                print(f"  → File: {os.path.basename(file_path)} ({file_size} bytes)")
+            
             if file_ext == '.txt':
                 # Read text file directly
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    raw_text = f.read()
-                if verbose:
-                    print(f"  → Read {len(raw_text)} characters from text file")
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        raw_text = f.read()
+                    if verbose:
+                        print(f"  → Read {len(raw_text)} characters from text file")
+                except Exception as txt_err:
+                    return {
+                        'success': False,
+                        'error': f'Error reading text file: {str(txt_err)}',
+                        'conditions': [],
+                        'medications': [],
+                        'procedures': [],
+                        'observations': {},
+                        'raw_text': ''
+                    }
             elif file_ext == '.pdf':
                 # Use OCR for PDF
-                raw_text = extract_text_from_pdf(file_path, verbose=False)
-                if verbose:
-                    print(f"  → Extracted {len(raw_text)} characters from PDF")
+                try:
+                    raw_text = extract_text_from_pdf(file_path, verbose=False)
+                    if verbose:
+                        print(f"  → Extracted {len(raw_text)} characters from PDF")
+                except Exception as pdf_err:
+                    return {
+                        'success': False,
+                        'error': f'PDF extraction failed: {str(pdf_err)}',
+                        'conditions': [],
+                        'medications': [],
+                        'procedures': [],
+                        'observations': {},
+                        'raw_text': ''
+                    }
             else:
                 return {
                     'success': False,

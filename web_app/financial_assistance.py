@@ -122,10 +122,10 @@ class AssistanceRecommendation:
     """Complete financial assistance recommendation"""
     request_id: str
     user_id: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    financial_profile: FinancialProfile  # Required field (no default) must come before fields with defaults
     
-    # Input data
-    financial_profile: FinancialProfile
+    # Fields with defaults come after
+    timestamp: datetime = field(default_factory=datetime.now)
     selected_plan_id: Optional[str] = None
     original_monthly_cost: float = 0.0
     

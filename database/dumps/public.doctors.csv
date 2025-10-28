@@ -1,0 +1,7 @@
+user_id,specialization,license_number,qualification,clinic_address,digital_signature_ref,availability_status
+1,Cardiology,LIC-ALICE-001,"MBBS, FRACP",,,Available
+28,Neurology,LIC-00028,MBBS,,,Available
+29,Dermatology,LIC-00029,MBBS,,,Available
+30,Cardiology,LIC-00030,MBBS,,,Available
+31,Cardiology,LIC-00031,MBBS,,,Available
+32,Endocrinology,LIC-00032,MBBS,,,Available
