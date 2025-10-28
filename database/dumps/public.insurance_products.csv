@@ -1,9 +1,0 @@
-id,name,coverage,premium,provider,product_link,insurance_type,created_at
-1,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-28 11:36:49.385153+00:00
-2,Health Plan 1,General cover,175.54,MediCo,https://example.com/health-plan-1,Health,2025-10-28 12:03:05.456643+00:00
-3,Health Plan 2,General cover,128.16,CareOne,https://example.com/health-plan-2,Health,2025-10-28 12:03:05.456643+00:00
-4,Health Plan 3,General cover,135.79,HealthPlus,https://example.com/health-plan-3,Health,2025-10-28 12:03:05.456643+00:00
-5,Health Plan 4,General cover,96.22,CareOne,https://example.com/health-plan-4,Health,2025-10-28 12:03:05.456643+00:00
-6,Health Plan 5,General cover,156.19,MediCo,https://example.com/health-plan-5,Health,2025-10-28 12:03:05.456643+00:00
-7,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-28 12:03:26.609619+00:00
-8,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-28 12:06:58.963555+00:00
