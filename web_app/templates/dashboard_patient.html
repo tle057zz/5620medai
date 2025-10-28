@@ -84,11 +84,42 @@
 
 <!-- AI Features Row -->
 <div class="row g-4 mb-4">
-    <!-- Clinical Record Analysis (NEW - Saahir Khan) -->
+    <!-- Financial Assistance (NEW - Venkatesh) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Financial Assistance (NEW)</h5>
+            </div>
+            <div class="card-body">
+                <h5>Subsidy Eligibility & Assistance</h5>
+                <p class="text-muted">
+                    Check your eligibility for government subsidies, payment plans, and financial 
+                    assistance programs to help with insurance premiums.
+                </p>
+                <ul class="mb-3 small">
+                    <li>Medicare & Health Care Card benefits (15-30% off)</li>
+                    <li>Pensioner & student discounts</li>
+                    <li>Family size assistance</li>
+                    <li>Payment plans & low-interest loans</li>
+                    <li>Charity care programs</li>
+                </ul>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('request_financial_assistance') }}" class="btn btn-warning">
+                        <i class="bi bi-calculator"></i> Calculate Subsidies
+                    </a>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="bi bi-info-circle-fill"></i> You may qualify for significant premium reductions!
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Clinical Record Analysis (Saahir Khan) -->
     <div class="col-md-6">
         <div class="card shadow-sm border-primary h-100">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-file-medical-fill"></i> Clinical Record Analysis (NEW)</h5>
+                <h5 class="mb-0"><i class="bi bi-file-medical-fill"></i> Clinical Record Analysis</h5>
             </div>
             <div class="card-body">
                 <h5>AI-Assisted Document Analysis</h5>

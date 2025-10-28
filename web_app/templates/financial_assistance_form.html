@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Request Financial Assistance{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h1 class="display-6 mb-2">
+                        <i class="bi bi-cash-coin text-success"></i> 
+                        Financial Assistance & Subsidies
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Check your eligibility for government subsidies and financial assistance programs
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Alert -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info shadow-sm">
+                <h5 class="alert-heading">
+                    <i class="bi bi-info-circle-fill"></i> How It Works
+                </h5>
+                <p class="mb-2">We'll calculate your eligibility for:</p>
+                <ul class="mb-0">
+                    <li><strong>Medicare Card Benefits</strong> - 15% premium reduction</li>
+                    <li><strong>Health Care Card</strong> - 25% premium reduction</li>
+                    <li><strong>Pensioner/Senior Discount</strong> - 30% premium reduction</li>
+                    <li><strong>Student Discount</strong> - 20% premium reduction</li>
+                    <li><strong>Family Size Assistance</strong> - 10% per additional member</li>
+                    <li><strong>Payment Plans & Loans</strong> - If additional help needed</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST">
+        <div class="row">
+            <!-- Left Column: Financial Profile -->
+            <div class="col-lg-8">
+                <!-- Basic Financial Information -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-wallet2"></i> 
+                            Financial Profile
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="annual_income" class="form-label">
+                                    Annual Income <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" name="annual_income" id="annual_income" 
+                                           value="{{ pre_income if pre_income else '' }}" 
+                                           min="0" step="1000" required
+                                           placeholder="e.g., 75000">
+                                    <span class="input-group-text">/year</span>
+                                </div>
+                                <small class="text-muted">Your total annual household income</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="household_size" class="form-label">
+                                    Household Size <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" name="household_size" id="household_size" 
+                                       value="1" min="1" max="20" required>
+                                <small class="text-muted">Total people in your household</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="dependents" class="form-label">Dependents</label>
+                                <input type="number" class="form-control" name="dependents" id="dependents" 
+                                       value="{{ pre_dependents if pre_dependents else 0 }}" min="0" max="10">
+                                <small class="text-muted">Number of dependent children/adults</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="state" class="form-label">State/Territory</label>
+                                <select class="form-select" name="state" id="state">
+                                    <option value="NSW" selected>New South Wales (NSW)</option>
+                                    <option value="VIC">Victoria (VIC)</option>
+                                    <option value="QLD">Queensland (QLD)</option>
+                                    <option value="SA">South Australia (SA)</option>
+                                    <option value="WA">Western Australia (WA)</option>
+                                    <option value="TAS">Tasmania (TAS)</option>
+                                    <option value="ACT">Australian Capital Territory (ACT)</option>
+                                    <option value="NT">Northern Territory (NT)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="employment_status" class="form-label">Employment Status</label>
+                                <select class="form-select" name="employment_status" id="employment_status">
+                                    <option value="employed" selected>Employed</option>
+                                    <option value="self_employed">Self-Employed</option>
+                                    <option value="unemployed">Unemployed</option>
+                                    <option value="retired">Retired</option>
+                                    <option value="student">Student</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="credit_score" class="form-label">Credit Score (Optional)</label>
+                                <input type="number" class="form-control" name="credit_score" id="credit_score" 
+                                       min="300" max="850" placeholder="e.g., 700">
+                                <small class="text-muted">For loan eligibility assessment</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Eligibility Cards & Concessions -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card-2-front"></i> 
+                            Government Cards & Concessions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Select any cards or concessions you hold:</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="has_medicare_card" id="has_medicare_card">
+                                    <label class="form-check-label" for="has_medicare_card">
+                                        <strong>Medicare Card</strong><br>
+                                        <small class="text-muted">15% premium reduction</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="has_health_care_card" id="has_health_care_card">
+                                    <label class="form-check-label" for="has_health_care_card">
+                                        <strong>Health Care Card</strong><br>
+                                        <small class="text-muted">25% premium reduction</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="pensioner" id="pensioner">
+                                    <label class="form-check-label" for="pensioner">
+                                        <strong>Pensioner Concession Card</strong><br>
+                                        <small class="text-muted">30% premium reduction</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="student" id="student">
+                                    <label class="form-check-label" for="student">
+                                        <strong>Full-Time Student</strong><br>
+                                        <small class="text-muted">20% premium reduction</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insurance Plan Details -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shield-fill-check"></i> 
+                            Insurance Plan Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="monthly_premium" class="form-label">
+                                    Monthly Premium Cost <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" name="monthly_premium" id="monthly_premium" 
+                                           min="0" step="10" required
+                                           placeholder="e.g., 400">
+                                    <span class="input-group-text">/month</span>
+                                </div>
+                                <small class="text-muted">The monthly premium of your selected plan</small>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="plan_id" class="form-label">Plan ID (Optional)</label>
+                                <input type="text" class="form-control" name="plan_id" id="plan_id" 
+                                       placeholder="e.g., PLN-001">
+                            </div>
+                        </div>
+
+                        {% if from_quote_id %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-link-45deg"></i> 
+                            <strong>Linked to Insurance Quote:</strong> <code>{{ from_quote_id }}</code>
+                        </div>
+                        <input type="hidden" name="from_quote" value="{{ from_quote_id }}">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Summary & Actions -->
+            <div class="col-lg-4">
+                <!-- Quick Estimate -->
+                <div class="card border-0 shadow-sm mb-4 sticky-top" style="top: 20px;">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calculator"></i> 
+                            Quick Estimate
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center py-3" id="quickEstimate">
+                            <p class="text-muted">Enter your income and premium to see an estimate</p>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-search"></i> Calculate Subsidies
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Notice -->
+                <div class="card border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-shield-lock-fill"></i> Privacy & Security
+                        </h6>
+                        <ul class="small mb-0">
+                            <li>Your financial data is encrypted</li>
+                            <li>Used only for subsidy calculation</li>
+                            <li>Not shared with insurers</li>
+                            <li>Complies with Privacy Act 1988</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Back Link -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Quick estimate calculator
+function updateQuickEstimate() {
+    const income = parseFloat(document.getElementById('annual_income').value) || 0;
+    const premium = parseFloat(document.getElementById('monthly_premium').value) || 0;
+    const hasMedicare = document.getElementById('has_medicare_card').checked;
+    const hasHealthCare = document.getElementById('has_health_care_card').checked;
+    const isPensioner = document.getElementById('pensioner').checked;
+    const isStudent = document.getElementById('student').checked;
+    const householdSize = parseInt(document.getElementById('household_size').value) || 1;
+    
+    if (income > 0 && premium > 0) {
+        let totalDiscount = 0;
+        let subsidyText = [];
+        
+        if (hasMedicare || income < 90000) {
+            totalDiscount += 0.15;
+            subsidyText.push('Medicare: 15%');
+        }
+        if (hasHealthCare || income < 60000) {
+            totalDiscount += 0.25;
+            subsidyText.push('Health Care Card: 25%');
+        }
+        if (isPensioner) {
+            totalDiscount += 0.30;
+            subsidyText.push('Pensioner: 30%');
+        }
+        if (isStudent && income < 40000) {
+            totalDiscount += 0.20;
+            subsidyText.push('Student: 20%');
+        }
+        if (householdSize >= 3) {
+            const familyDiscount = Math.min(0.10 * (householdSize - 2), 0.30);
+            totalDiscount += familyDiscount;
+            subsidyText.push(`Family: ${(familyDiscount * 100).toFixed(0)}%`);
+        }
+        
+        const monthlySubsidy = premium * totalDiscount;
+        const newPremium = premium - monthlySubsidy;
+        const annualSavings = monthlySubsidy * 12;
+        
+        const estimateHtml = `
+            <div class="alert alert-success mb-2">
+                <h6 class="mb-1">Estimated Subsidies:</h6>
+                <h3 class="mb-0">$${monthlySubsidy.toFixed(2)}/month</h3>
+                <small>$${annualSavings.toFixed(2)}/year</small>
+            </div>
+            <div class="alert alert-info mb-0">
+                <strong>New Premium:</strong><br>
+                <h5>$${newPremium.toFixed(2)}/month</h5>
+                <small class="text-muted">
+                    (${((newPremium / (income/12)) * 100).toFixed(1)}% of monthly income)
+                </small>
+            </div>
+            ${subsidyText.length > 0 ? `<div class="mt-2 small">
+                <strong>Applied:</strong><br>
+                ${subsidyText.join('<br>')}
+            </div>` : ''}
+        `;
+        
+        document.getElementById('quickEstimate').innerHTML = estimateHtml;
+    }
+}
+
+// Update estimate on input change
+document.getElementById('annual_income').addEventListener('input', updateQuickEstimate);
+document.getElementById('monthly_premium').addEventListener('input', updateQuickEstimate);
+document.getElementById('has_medicare_card').addEventListener('change', updateQuickEstimate);
+document.getElementById('has_health_care_card').addEventListener('change', updateQuickEstimate);
+document.getElementById('pensioner').addEventListener('change', updateQuickEstimate);
+document.getElementById('student').addEventListener('change', updateQuickEstimate);
+document.getElementById('household_size').addEventListener('input', updateQuickEstimate);
+
+// Initialize on page load
+updateQuickEstimate();
+</script>
+{% endblock %}
+

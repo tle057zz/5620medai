@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Review AI Output - {{ review.analysis_id[:12] }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.review-section {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    margin-bottom: 1.5rem;
+}
+.review-section.reviewed {
+    border-left-color: #28a745;
+}
+.safety-flag-card {
+    border-left: 4px solid;
+    margin-bottom: 0.5rem;
+}
+.safety-flag-card.critical { border-left-color: #dc3545; }
+.safety-flag-card.high { border-left-color: #fd7e14; }
+.safety-flag-card.moderate { border-left-color: #ffc107; }
+.safety-flag-card.low { border-left-color: #17a2b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="display-6 mb-2">
+                                <i class="bi bi-clipboard-check text-danger"></i> 
+                                Review AI Output
+                            </h1>
+                            <p class="text-muted mb-0">
+                                Analysis ID: <code>{{ review.analysis_id }}</code> | 
+                                Document: {{ review.document_type|replace('_', ' ')|title }} |
+                                Processed: {{ review.processed_at.strftime('%Y-%m-%d %H:%M') }}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Queue
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Alerts -->
+    {% if review.has_critical_flags %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger shadow-sm">
+                <h5 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    Critical Safety Flags Detected
+                </h5>
+                <p class="mb-2">
+                    This analysis contains <strong>{{ review.safety_flags|selectattr('severity.value', 'equalto', 'critical')|list|length }} critical safety flag(s)</strong> that must be addressed before approval.
+                </p>
+                <p class="mb-0 small">
+                    ✓ Review each flag carefully<br>
+                    ✓ Provide override justification if approving<br>
+                    ✓ Consider escalating to specialist
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if review.overall_confidence < 0.7 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning shadow-sm">
+                <h5 class="alert-heading">
+                    <i class="bi bi-info-circle-fill"></i> 
+                    Low AI Confidence ({{ (review.overall_confidence * 100)|int }}%)
+                </h5>
+                <p class="mb-0">
+                    The AI has low confidence in this analysis. Consider requesting specialist review before approval.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" id="reviewForm">
+        <div class="row">
+            <!-- Left Column: Review Content -->
+            <div class="col-lg-8">
+                <!-- Section 1: FHIR Data Review -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="reviewed_fhir" id="reviewed_fhir" required>
+                            <label class="form-check-label" for="reviewed_fhir">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-file-earmark-code"></i> 
+                                    1. FHIR Data Review
+                                </h5>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Review extracted FHIR R4 structured data for completeness and accuracy.</p>
+                        
+                        {% if review.fhir_data %}
+                        <div class="accordion" id="fhirAccordion">
+                            <!-- Conditions -->
+                            {% if review.fhir_data.get('entry') %}
+                            {% set conditions = review.fhir_data.get('entry', [])|selectattr('resource.resourceType', 'equalto', 'Condition')|list %}
+                            {% if conditions %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#fhirConditions">
+                                        Conditions ({{ conditions|length }})
+                                    </button>
+                                </h2>
+                                <div id="fhirConditions" class="accordion-collapse collapse show" data-bs-parent="#fhirAccordion">
+                                    <div class="accordion-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for entry in conditions[:5] %}
+                                            <li class="list-group-item">
+                                                <i class="bi bi-arrow-right-circle text-danger"></i> 
+                                                {{ entry.resource.code.text if entry.resource.code else 'Unknown condition' }}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                            
+                            <!-- Medications -->
+                            {% set medications = review.fhir_data.get('entry', [])|selectattr('resource.resourceType', 'equalto', 'MedicationStatement')|list %}
+                            {% if medications %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fhirMedications">
+                                        Medications ({{ medications|length }})
+                                    </button>
+                                </h2>
+                                <div id="fhirMedications" class="accordion-collapse collapse" data-bs-parent="#fhirAccordion">
+                                    <div class="accordion-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for entry in medications[:5] %}
+                                            <li class="list-group-item">
+                                                <i class="bi bi-capsule text-success"></i> 
+                                                {{ entry.resource.medicationCodeableConcept.text if entry.resource.medicationCodeableConcept else 'Unknown medication' }}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('download_fhir_bundle', analysis_id=review.analysis_id) }}" 
+                               class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-download"></i> Download Full FHIR Bundle (JSON)
+                            </a>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No FHIR data available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Section 2: AI Summary Review -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="reviewed_summary" id="reviewed_summary" required>
+                            <label class="form-check-label" for="reviewed_summary">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-file-text"></i> 
+                                    2. AI-Generated Summary Review
+                                </h5>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Verify summary accuracy, clarity, and patient appropriateness.</p>
+                        
+                        {% if review.summary_md %}
+                        <div class="border rounded p-3 bg-light" style="max-height: 400px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; font-family: system-ui;">{{ review.summary_md }}</pre>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No summary available.</p>
+                        {% endif %}
+                        
+                        {% if review.risks_md %}
+                        <div class="mt-3">
+                            <h6 class="text-danger">Risk Assessment:</h6>
+                            <div class="border rounded p-3 bg-light">
+                                <pre style="white-space: pre-wrap; font-family: system-ui;">{{ review.risks_md }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Section 3: Safety Flags Review -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="reviewed_safety" id="reviewed_safety" required>
+                            <label class="form-check-label" for="reviewed_safety">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-shield-exclamation"></i> 
+                                    3. Safety Flags Review
+                                </h5>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Evaluate all safety concerns, contraindications, and red flags.
+                            {% if review.requires_mandatory_override %}
+                            <strong class="text-danger">Override justification required for critical flags.</strong>
+                            {% endif %}
+                        </p>
+                        
+                        {% if review.safety_flags %}
+                        <div class="safety-flags-list">
+                            {% for flag in review.safety_flags %}
+                            <div class="card safety-flag-card {{ flag.severity.value }} mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <span class="badge bg-{{ 'danger' if flag.severity.value == 'critical' else 'warning' if flag.severity.value == 'high' else 'info' }}">
+                                                    {{ flag.severity.value|upper }}
+                                                </span>
+                                                {{ flag.category|replace('_', ' ')|title }}
+                                            </h6>
+                                            <p class="mb-2">{{ flag.description }}</p>
+                                            <small class="text-muted">
+                                                AI Confidence: {{ (flag.ai_confidence * 100)|int }}%
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if flag.requires_override %}
+                                    <div class="mt-3 border-top pt-3">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="override_flags" value="{{ flag.flag_id }}" 
+                                                   id="override_{{ flag.flag_id }}">
+                                            <label class="form-check-label text-danger" for="override_{{ flag.flag_id }}">
+                                                <strong>I acknowledge and override this critical flag</strong>
+                                            </label>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label for="justification_{{ flag.flag_id }}" class="form-label small">
+                                                Override Justification (Required):
+                                            </label>
+                                            <textarea class="form-control form-control-sm" 
+                                                      name="justification_{{ flag.flag_id }}" 
+                                                      id="justification_{{ flag.flag_id }}"
+                                                      rows="2" 
+                                                      placeholder="Provide clinical justification for overriding this critical safety flag..."></textarea>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill"></i> 
+                            No safety flags detected - Analysis appears safe for release.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Modifications Section -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pencil-square"></i> 
+                            Modifications & Notes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="has_modifications" id="has_modifications">
+                            <label class="form-check-label" for="has_modifications">
+                                I have modifications or corrections to the AI output
+                            </label>
+                        </div>
+                        
+                        <div id="modificationsSection" style="display: none;">
+                            <label for="modification_text" class="form-label">Describe your modifications:</label>
+                            <textarea class="form-control" name="modification_text" id="modification_text" 
+                                      rows="4" 
+                                      placeholder="Describe any corrections, additions, or clarifications made to the AI output..."></textarea>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <label for="notes" class="form-label">Review Notes:</label>
+                            <textarea class="form-control" name="notes" id="notes" 
+                                      rows="4" 
+                                      placeholder="Add any additional notes or observations about this review..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Decision Panel -->
+            <div class="col-lg-4">
+                <!-- Decision Card -->
+                <div class="card border-0 shadow-sm mb-4 sticky-top" style="top: 20px;">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-check-circle"></i> 
+                            Approval Decision
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Decision Options -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Decision:</label>
+                            <select class="form-select" name="status" id="status" required>
+                                <option value="">-- Select Decision --</option>
+                                <option value="approved">✓ Approve for Patient Release</option>
+                                <option value="rejected">✗ Reject (Do Not Release)</option>
+                                <option value="needs_revision">⚠ Needs Revision</option>
+                                <option value="escalated">↗ Escalate to Specialist</option>
+                            </select>
+                        </div>
+
+                        <!-- Checklist Summary -->
+                        <div class="alert alert-info small">
+                            <strong>Required Before Approval:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>✓ All 3 sections reviewed</li>
+                                <li>✓ Safety flags evaluated</li>
+                                <li>✓ Critical flags overridden (if any)</li>
+                                <li>✓ Digital signature</li>
+                            </ul>
+                        </div>
+
+                        <!-- Digital Signature -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="confirm_signature" id="confirm_signature" required>
+                                <label class="form-check-label small" for="confirm_signature">
+                                    <strong>I certify this review with my digital signature</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Signature: {{ current_user.get_display_name() }}<br>
+                                        Time: <span id="currentTime"></span>
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
+                                <i class="bi bi-check-circle-fill"></i> Submit Review
+                            </button>
+                            <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+
+                        <!-- Escalate Option -->
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-warning btn-sm w-100" data-bs-toggle="modal" data-bs-target="#escalateModal">
+                                <i class="bi bi-arrow-up-circle"></i> Escalate to Specialist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Metadata -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Analysis Details</h6>
+                    </div>
+                    <div class="card-body small">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Analysis ID:</dt>
+                            <dd class="col-sm-7 font-monospace small">{{ review.analysis_id[:16] }}...</dd>
+                            
+                            <dt class="col-sm-5">Document Type:</dt>
+                            <dd class="col-sm-7">{{ review.document_type|replace('_', ' ')|title }}</dd>
+                            
+                            <dt class="col-sm-5">Processed:</dt>
+                            <dd class="col-sm-7">{{ review.processed_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                            
+                            <dt class="col-sm-5">AI Confidence:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-{{ 'success' if review.overall_confidence >= 0.8 else 'warning' }}">
+                                    {{ (review.overall_confidence * 100)|int }}%
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Safety Flags:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-{{ 'danger' if review.has_critical_flags else 'success' }}">
+                                    {{ review.safety_flags|length }}
+                                </span>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Escalate Modal -->
+<div class="modal fade" id="escalateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Escalate for Specialist Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('escalate_review', analysis_id=review.analysis_id) }}">
+                <div class="modal-body">
+                    <p>This case will be flagged for specialist review before final approval.</p>
+                    <div class="mb-3">
+                        <label for="escalate_reason" class="form-label">Reason for Escalation:</label>
+                        <textarea class="form-control" name="reason" id="escalate_reason" rows="3" required
+                                  placeholder="Explain why this case requires specialist review..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-up-circle"></i> Escalate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update current time
+function updateTime() {
+    document.getElementById('currentTime').textContent = new Date().toLocaleString();
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+// Enable submit button when all required checkboxes are checked
+function updateSubmitButton() {
+    const fhir = document.getElementById('reviewed_fhir').checked;
+    const summary = document.getElementById('reviewed_summary').checked;
+    const safety = document.getElementById('reviewed_safety').checked;
+    const signature = document.getElementById('confirm_signature').checked;
+    const status = document.getElementById('status').value;
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = !(fhir && summary && safety && signature && status);
+}
+
+document.getElementById('reviewed_fhir').addEventListener('change', updateSubmitButton);
+document.getElementById('reviewed_summary').addEventListener('change', updateSubmitButton);
+document.getElementById('reviewed_safety').addEventListener('change', updateSubmitButton);
+document.getElementById('confirm_signature').addEventListener('change', updateSubmitButton);
+document.getElementById('status').addEventListener('change', updateSubmitButton);
+
+// Show/hide modifications section
+document.getElementById('has_modifications').addEventListener('change', function() {
+    document.getElementById('modificationsSection').style.display = this.checked ? 'block' : 'none';
+});
+
+// Form validation for critical flag overrides
+document.getElementById('reviewForm').addEventListener('submit', function(e) {
+    const status = document.getElementById('status').value;
+    
+    // If approving, check all override checkboxes have justifications
+    if (status === 'approved') {
+        const overrideCheckboxes = document.querySelectorAll('input[name="override_flags"]:checked');
+        let allValid = true;
+        
+        overrideCheckboxes.forEach(function(checkbox) {
+            const flagId = checkbox.value;
+            const justification = document.getElementById('justification_' + flagId).value.trim();
+            
+            if (!justification) {
+                alert('Please provide justification for all critical flag overrides.');
+                allValid = false;
+                return false;
+            }
+        });
+        
+        if (!allValid) {
+            e.preventDefault();
+            return false;
+        }
+    }
+});
+</script>
+{% endblock %}
+

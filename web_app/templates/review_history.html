@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Review History - Approval Decisions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="display-6 mb-2">
+                                <i class="bi bi-clock-history text-primary"></i> 
+                                Review History
+                            </h1>
+                            <p class="text-muted mb-0">
+                                Complete audit trail of all approval decisions
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-danger me-2">
+                                <i class="bi bi-list-check"></i> Pending Reviews
+                            </a>
+                            <a href="{{ url_for('doctor_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-list-check display-4 text-primary"></i>
+                    <h3 class="mt-2">{{ decisions|length }}</h3>
+                    <p class="text-muted mb-0">Total Reviews</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle-fill display-4 text-success"></i>
+                    <h3 class="mt-2">
+                        {{ decisions|selectattr('status.value', 'equalto', 'approved')|list|length }}
+                    </h3>
+                    <p class="text-muted mb-0">Approved</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-x-circle-fill display-4 text-danger"></i>
+                    <h3 class="mt-2">
+                        {{ decisions|selectattr('status.value', 'equalto', 'rejected')|list|length }}
+                    </h3>
+                    <p class="text-muted mb-0">Rejected</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-arrow-up-circle-fill display-4 text-warning"></i>
+                    <h3 class="mt-2">
+                        {{ decisions|selectattr('status.value', 'equalto', 'escalated')|list|length }}
+                    </h3>
+                    <p class="text-muted mb-0">Escalated</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="filterStatus" class="form-label small">Filter by Status:</label>
+                            <select class="form-select form-select-sm" id="filterStatus">
+                                <option value="">All Statuses</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="escalated">Escalated</option>
+                                <option value="needs_revision">Needs Revision</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterReviewer" class="form-label small">Filter by Reviewer:</label>
+                            <input type="text" class="form-control form-control-sm" id="filterReviewer" 
+                                   placeholder="Reviewer name...">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filterDate" class="form-label small">From Date:</label>
+                            <input type="date" class="form-control form-control-sm" id="filterDate">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">&nbsp;</label>
+                            <button class="btn btn-sm btn-primary w-100" onclick="applyFilters()">
+                                <i class="bi bi-funnel"></i> Apply Filters
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">&nbsp;</label>
+                            <button class="btn btn-sm btn-outline-secondary w-100" onclick="clearFilters()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i> Approval Decisions
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportHistory()">
+                        <i class="bi bi-download"></i> Export CSV
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if decisions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle" id="historyTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Decision ID</th>
+                                    <th>Analysis ID</th>
+                                    <th>Reviewer</th>
+                                    <th>Decision</th>
+                                    <th>Timestamp</th>
+                                    <th>Overrides</th>
+                                    <th>Released</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for decision in decisions %}
+                                <tr data-status="{{ decision.status.value }}" 
+                                    data-reviewer="{{ decision.reviewer_name }}" 
+                                    data-date="{{ decision.timestamp.strftime('%Y-%m-%d') }}">
+                                    <!-- Decision ID -->
+                                    <td>
+                                        <small class="font-monospace">
+                                            {{ decision.decision_id[:12] }}...
+                                        </small>
+                                    </td>
+                                    
+                                    <!-- Analysis ID -->
+                                    <td>
+                                        <small class="font-monospace">
+                                            {{ decision.analysis_id[:12] }}...
+                                        </small>
+                                    </td>
+                                    
+                                    <!-- Reviewer -->
+                                    <td>
+                                        <i class="bi bi-person-badge text-primary"></i>
+                                        {{ decision.reviewer_name }}
+                                    </td>
+                                    
+                                    <!-- Decision Status -->
+                                    <td>
+                                        {% if decision.status.value == 'approved' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle-fill"></i> Approved
+                                        </span>
+                                        {% elif decision.status.value == 'rejected' %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle-fill"></i> Rejected
+                                        </span>
+                                        {% elif decision.status.value == 'escalated' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-arrow-up-circle-fill"></i> Escalated
+                                        </span>
+                                        {% elif decision.status.value == 'needs_revision' %}
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-pencil-fill"></i> Needs Revision
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ decision.status.value|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Timestamp -->
+                                    <td>
+                                        <small>{{ decision.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    </td>
+                                    
+                                    <!-- Safety Overrides -->
+                                    <td>
+                                        {% if decision.safety_overrides %}
+                                        <span class="badge bg-warning text-dark">
+                                            {{ decision.safety_overrides|length }} override(s)
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">None</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Released to Patient -->
+                                    <td>
+                                        {% if decision.released_to_patient %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Yes
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Actions -->
+                                    <td>
+                                        <a href="{{ url_for('view_approval_decision', decision_id=decision.decision_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h3 class="mt-4">No Review History</h3>
+                        <p class="text-muted">
+                            Approval decisions will appear here once reviews are completed.
+                        </p>
+                        <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-primary mt-3">
+                            <i class="bi bi-list-check"></i> View Pending Reviews
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Trail Info -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-shield-lock-fill"></i> Audit Trail Information
+                    </h6>
+                    <div class="row small">
+                        <div class="col-md-4">
+                            <strong>Data Retention:</strong>
+                            <ul class="mb-0">
+                                <li>All decisions are immutable</li>
+                                <li>Retained for 7 years (compliance)</li>
+                                <li>Digital signatures verified</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Recorded Information:</strong>
+                            <ul class="mb-0">
+                                <li>Reviewer identity & credentials</li>
+                                <li>Timestamp (UTC)</li>
+                                <li>Safety flag overrides with justification</li>
+                                <li>Modifications made to AI output</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Compliance:</strong>
+                            <ul class="mb-0">
+                                <li>HIPAA audit trail requirements</li>
+                                <li>Medical device regulations</li>
+                                <li>Professional liability coverage</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filter functionality
+function applyFilters() {
+    const statusFilter = document.getElementById('filterStatus').value.toLowerCase();
+    const reviewerFilter = document.getElementById('filterReviewer').value.toLowerCase();
+    const dateFilter = document.getElementById('filterDate').value;
+    
+    const rows = document.querySelectorAll('#historyTable tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        const reviewer = row.getAttribute('data-reviewer').toLowerCase();
+        const date = row.getAttribute('data-date');
+        
+        let show = true;
+        
+        if (statusFilter && status !== statusFilter) show = false;
+        if (reviewerFilter && !reviewer.includes(reviewerFilter)) show = false;
+        if (dateFilter && date < dateFilter) show = false;
+        
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    console.log(`Showing ${visibleCount} of ${rows.length} decisions`);
+}
+
+function clearFilters() {
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterReviewer').value = '';
+    document.getElementById('filterDate').value = '';
+    
+    const rows = document.querySelectorAll('#historyTable tbody tr');
+    rows.forEach(row => row.style.display = '');
+}
+
+function exportHistory() {
+    // In production, implement CSV export
+    alert('CSV export functionality - coming soon!');
+}
+</script>
+{% endblock %}
+

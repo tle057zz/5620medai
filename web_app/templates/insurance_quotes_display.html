@@ -19,6 +19,12 @@
 
     <!-- Action Buttons -->
     <div class="mb-4">
+        <!-- PRIMARY ACTION: Financial Assistance (NEW!) -->
+        <a href="{{ url_for('financial_assistance_from_quote', request_id=quote_request.request_id) }}" 
+           class="btn btn-warning btn-lg me-2">
+            <i class="bi bi-cash-coin"></i> <strong>Get Financial Assistance</strong>
+        </a>
+        
         <a href="{{ url_for('insurance_compare', request_id=quote_request.request_id) }}" 
            class="btn btn-success">
             <i class="fas fa-exchange-alt"></i> Compare Quotes
@@ -44,6 +50,18 @@
         </a>
         <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-outline-primary">
             <i class="fas fa-redo"></i> Request New Quote
+        </a>
+    </div>
+    
+    <!-- Financial Assistance Teaser (NEW!) -->
+    <div class="alert alert-warning shadow-sm mb-4">
+        <h5 class="alert-heading">
+            <i class="bi bi-piggy-bank-fill"></i> Need Help Paying?
+        </h5>
+        <p class="mb-2">You may qualify for government subsidies and financial assistance to lower your premium costs!</p>
+        <a href="{{ url_for('financial_assistance_from_quote', request_id=quote_request.request_id) }}" 
+           class="btn btn-warning">
+            <i class="bi bi-calculator"></i> Calculate Your Subsidies
         </a>
     </div>
 

@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Pending AI Reviews - Review Queue{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="display-6 mb-2">
+                                <i class="bi bi-clipboard-check text-danger"></i> 
+                                Pending AI Reviews
+                            </h1>
+                            <p class="text-muted mb-0">
+                                Review and approve AI-generated medical content before patient release
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('review_history') }}" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-clock-history"></i> Review History
+                            </a>
+                            <a href="{{ url_for('doctor_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-danger h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-exclamation-triangle-fill display-4 text-danger"></i>
+                    <h3 class="mt-2">{{ pending_analyses|length }}</h3>
+                    <p class="text-muted mb-0">Pending Reviews</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-shield-exclamation display-4 text-warning"></i>
+                    <h3 class="mt-2">
+                        {{ pending_analyses|selectattr('has_critical_flags')|list|length }}
+                    </h3>
+                    <p class="text-muted mb-0">Critical Flags</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-speedometer2 display-4 text-info"></i>
+                    <h3 class="mt-2">
+                        {% set low_conf = pending_analyses|selectattr('overall_confidence', 'lt', 0.7)|list|length %}
+                        {{ low_conf }}
+                    </h3>
+                    <p class="text-muted mb-0">Low Confidence</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock display-4 text-success"></i>
+                    <h3 class="mt-2">Today</h3>
+                    <p class="text-muted mb-0">Review Period</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Priority Alert -->
+    {% set critical_count = pending_analyses|selectattr('has_critical_flags')|list|length %}
+    {% if critical_count > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger shadow-sm">
+                <h5 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    {{ critical_count }} Analysis(es) with Critical Safety Flags
+                </h5>
+                <p class="mb-0">
+                    These analyses require immediate review and cannot be released without override justification.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Review Queue -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-check"></i> Review Queue ({{ count }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_analyses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Analysis ID</th>
+                                    <th>Document Type</th>
+                                    <th>Processed</th>
+                                    <th>AI Confidence</th>
+                                    <th>Safety Flags</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for review in pending_analyses %}
+                                <tr class="{% if review.has_critical_flags %}table-danger{% elif review.overall_confidence < 0.7 %}table-warning{% endif %}">
+                                    <!-- Priority -->
+                                    <td>
+                                        {% if review.has_critical_flags %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> URGENT
+                                        </span>
+                                        {% elif review.overall_confidence < 0.7 %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-info-circle-fill"></i> Low Conf
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Normal</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Analysis ID -->
+                                    <td>
+                                        <small class="font-monospace">
+                                            {{ review.analysis_id[:12] }}...
+                                        </small>
+                                    </td>
+                                    
+                                    <!-- Document Type -->
+                                    <td>
+                                        <i class="bi bi-file-earmark-medical text-primary"></i>
+                                        {{ review.document_type|replace('_', ' ')|title }}
+                                    </td>
+                                    
+                                    <!-- Processed Time -->
+                                    <td>
+                                        <small>{{ review.processed_at.strftime('%Y-%m-%d %H:%M') if review.processed_at else 'Unknown' }}</small>
+                                    </td>
+                                    
+                                    <!-- AI Confidence -->
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px; min-width: 80px;">
+                                                {% set conf_pct = (review.overall_confidence * 100)|int %}
+                                                <div class="progress-bar 
+                                                    {% if conf_pct >= 80 %}bg-success
+                                                    {% elif conf_pct >= 60 %}bg-info
+                                                    {% elif conf_pct >= 40 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}"
+                                                    role="progressbar" 
+                                                    style="width: {{ conf_pct }}%"
+                                                    aria-valuenow="{{ conf_pct }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100">
+                                                    {{ conf_pct }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    
+                                    <!-- Safety Flags -->
+                                    <td>
+                                        {% if review.safety_flags %}
+                                        <span class="badge bg-{% if review.has_critical_flags %}danger{% else %}warning{% endif %}">
+                                            {{ review.safety_flags|length }} flag(s)
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-success">None</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Status -->
+                                    <td>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-hourglass-split"></i> Pending
+                                        </span>
+                                    </td>
+                                    
+                                    <!-- Actions -->
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('review_ai_output', analysis_id=review.analysis_id) }}" 
+                                               class="btn btn-{% if review.has_critical_flags %}danger{% else %}primary{% endif %}">
+                                                <i class="bi bi-clipboard-check"></i> Review
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle display-1 text-success"></i>
+                        <h3 class="mt-4">No Pending Reviews</h3>
+                        <p class="text-muted">
+                            All AI outputs have been reviewed. New analyses will appear here automatically.
+                        </p>
+                        <a href="{{ url_for('clinical_analysis') }}" class="btn btn-primary mt-3">
+                            <i class="bi bi-file-earmark-medical"></i> Process New Document
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-info-circle-fill"></i> Review Guidelines
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Priority Indicators:</strong>
+                            <ul class="small mb-0">
+                                <li><span class="badge bg-danger">URGENT</span> - Critical safety flags detected</li>
+                                <li><span class="badge bg-warning text-dark">Low Conf</span> - AI confidence below 70%</li>
+                                <li><span class="badge bg-secondary">Normal</span> - Standard review</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Required Actions:</strong>
+                            <ul class="small mb-0">
+                                <li>Review FHIR data completeness</li>
+                                <li>Verify summary accuracy</li>
+                                <li>Evaluate all safety flags</li>
+                                <li>Provide digital signature</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Escalation Triggers:</strong>
+                            <ul class="small mb-0">
+                                <li>Unresolved critical flags</li>
+                                <li>Confidence below 70%</li>
+                                <li>Complex medical conditions</li>
+                                <li>Conflicting AI outputs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
