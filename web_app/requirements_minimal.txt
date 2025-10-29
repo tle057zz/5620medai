@@ -26,3 +26,4 @@ pandas==2.1.4
 # Note: This excludes heavy ML libraries (torch, numpy, scispacy)
 # Web app will run with AI features disabled but all other features work
 
+

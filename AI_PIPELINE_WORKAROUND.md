@@ -222,3 +222,4 @@ http://127.0.0.1:5000/insurance/request-quote
 
 **Bottom Line**: The system works! Just use manual input instead of document upload for insurance quotes. This is actually better for demo because you can show specific scenarios. 🚀
 
+

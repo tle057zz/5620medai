@@ -81,3 +81,4 @@ echo "⚠️  Note: AI document processing will be disabled"
 echo "   (but all other features work perfectly!)"
 echo ""
 
+
