@@ -7,3 +7,4 @@ id,name,coverage,premium,provider,product_link,insurance_type,created_at
 6,Health Plan 5,General cover,156.19,MediCo,https://example.com/health-plan-5,Health,2025-10-28 12:03:05.456643+00:00
 7,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-28 12:03:26.609619+00:00
 8,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-28 12:06:58.963555+00:00
+11,Basic Health Cover,General health cover,99.90,MediCo,https://example.com/plan/basic,Health,2025-10-29 03:01:50.987430+00:00

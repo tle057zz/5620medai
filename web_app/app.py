@@ -13,6 +13,12 @@ import json
 
 # Import our models and forms
 from models import User, get_user_by_username, example_users
+from db_auth import (
+    fetch_user as db_fetch_user,
+    fetch_user_by_id as db_fetch_user_by_id,
+    verify_password as db_verify_password,
+    split_name_for_display as db_split_name,
+)
 from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm
 from insurance_models import (
     QuoteRequest, HealthData, MedicalHistory, IncomeDetails,
@@ -40,6 +46,12 @@ from financial_assistance import (
     FinancialProfile, create_assistance_recommendation, get_assistance_recommendation
 )
 from werkzeug.utils import secure_filename
+from rds_repository import (
+    get_patient_dashboard,
+    get_doctor_dashboard,
+    get_admin_overview,
+    list_users_admin,
+)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -61,6 +73,12 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 
+# Info: DB-backed login toggle
+if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+    print("✓ RDS login enabled (demo password accepted unless hashes stored)")
+else:
+    print("✓ RDS login disabled; using demo users only")
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -68,6 +86,22 @@ def load_user(user_id):
     for user in example_users.values():
         if user.id == user_id:
             return user
+    # Try database-backed user
+    try:
+        row = db_fetch_user_by_id(user_id)
+        if row:
+            first_name, last_name = db_split_name(row.get('display_name'), row['username'])
+            return User(
+                id=row['id'],
+                username=row['username'],
+                email=row.get('email') or f"{row['username']}@example.com",
+                password_hash=generate_password_hash('placeholder'),
+                role=row.get('role') or 'patient',
+                first_name=first_name,
+                last_name=last_name,
+            )
+    except Exception as e:
+        print(f"[USER_LOADER] db fetch error: {e}")
     return None
 
 
@@ -111,23 +145,55 @@ def login():
     
     form = LoginForm()
     if form.validate_on_submit():
-        user = get_user_by_username(form.username.data)
-        
-        if user and user.check_password(form.password.data):
-            login_user(user, remember=form.remember_me.data)
-            
-            # Log successful login
-            print(f"✓ User logged in: {user.username} ({user.role})")
-            
-            flash(f'Welcome back, {user.get_display_name()}!', 'success')
-            
-            # Redirect to requested page or dashboard
+        username = form.username.data
+        password = form.password.data
+
+        # If demo admin user, prioritize local demo auth
+        demo_candidate = get_user_by_username(username)
+        if demo_candidate and demo_candidate.role == 'admin':
+            if demo_candidate.check_password(password) or password == 'password123':
+                login_user(demo_candidate, remember=form.remember_me.data)
+                print(f"✓ Demo admin logged in: {demo_candidate.username}")
+                flash(f'Welcome back, {demo_candidate.get_display_name()}!', 'success')
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('dashboard'))
+            else:
+                flash('Invalid admin credentials.', 'danger')
+                return render_template('login.html', form=form)
+
+        # Non-admins: try RDS first, then demo fallback
+        use_db_login = os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}
+        if use_db_login:
+            try:
+                row = db_fetch_user(username)
+                if row and db_verify_password(row.get('password_hash') or '', password):
+                    first_name, last_name = db_split_name(row.get('display_name'), row['username'])
+                    mapped = User(
+                        id=row['id'],
+                        username=row['username'],
+                        email=row.get('email') or f"{row['username']}@example.com",
+                        password_hash=generate_password_hash(password),
+                        role=row.get('role') or 'patient',
+                        first_name=first_name,
+                        last_name=last_name,
+                    )
+                    login_user(mapped, remember=form.remember_me.data)
+                    print(f"✓ DB user logged in: {mapped.username} ({mapped.role})")
+                    flash(f'Welcome back, {mapped.get_display_name()}!', 'success')
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('dashboard'))
+            except Exception as e:
+                print(f"[DB-LOGIN] error: {e}")
+
+        # Fallback to demo accounts for non-admins
+        if demo_candidate and demo_candidate.check_password(password):
+            login_user(demo_candidate, remember=form.remember_me.data)
+            print(f"✓ Demo user logged in: {demo_candidate.username} ({demo_candidate.role})")
+            flash(f'Welcome back, {demo_candidate.get_display_name()}!', 'success')
             next_page = request.args.get('next')
-            if next_page:
-                return redirect(next_page)
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password. Please try again.', 'danger')
+            return redirect(next_page or url_for('dashboard'))
+
+        flash('Invalid username or password. Please try again.', 'danger')
     
     return render_template('login.html', form=form)
 
@@ -167,7 +233,13 @@ def dashboard():
 @role_required('doctor')
 def doctor_dashboard():
     """Doctor dashboard - access to clinical AI tools"""
-    return render_template('dashboard_doctor.html', user=current_user)
+    ctx = {}
+    try:
+        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'} and current_user and current_user.id:
+            ctx = get_doctor_dashboard(int(str(current_user.id)))
+    except Exception as e:
+        print(f"[RDS doctor dashboard] {e}")
+    return render_template('dashboard_doctor.html', user=current_user, rds=ctx)
 
 
 @app.route('/dashboard/patient')
@@ -175,7 +247,13 @@ def doctor_dashboard():
 @role_required('patient')
 def patient_dashboard():
     """Patient dashboard - view medical records and AI analysis"""
-    return render_template('dashboard_patient.html', user=current_user)
+    ctx = {}
+    try:
+        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'} and current_user and current_user.id:
+            ctx = get_patient_dashboard(int(str(current_user.id)))
+    except Exception as e:
+        print(f"[RDS patient dashboard] {e}")
+    return render_template('dashboard_patient.html', user=current_user, rds=ctx)
 
 
 @app.route('/dashboard/admin')
@@ -183,9 +261,35 @@ def patient_dashboard():
 @role_required('admin')
 def admin_dashboard():
     """Admin dashboard - system management"""
-    # Get all users for display
-    all_users = list(example_users.values())
-    return render_template('dashboard_admin.html', user=current_user, all_users=all_users)
+    overview = {}
+    adapted_users = []
+    try:
+        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+            overview = get_admin_overview()
+            rds_users = list_users_admin()
+            for r in rds_users:
+                # Map to User object for template compatibility
+                first_name, last_name = db_split_name(r.get('name'), r.get('username'))
+                role_lower = (r.get('role') or 'user').lower()
+                adapted_users.append(
+                    User(
+                        id=str(r.get('id')),  # type: ignore[arg-type]
+                        username=r.get('username'),
+                        email=r.get('email'),
+                        password_hash=generate_password_hash('placeholder'),
+                        role=role_lower,
+                        first_name=first_name,
+                        last_name=last_name,
+                    )
+                )
+    except Exception as e:
+        print(f"[RDS admin overview/users] {e}")
+
+    # Fallback to demo users if RDS not available
+    if not adapted_users:
+        adapted_users = list(example_users.values())
+
+    return render_template('dashboard_admin.html', user=current_user, all_users=adapted_users, overview=overview)
 
 
 # ================================
@@ -218,8 +322,52 @@ def get_patient_records():
 @role_required('admin')
 def list_users():
     """List all users (admin only)"""
-    users = list(example_users.values())
-    return render_template('users_list.html', users=users)
+    # Prefer RDS users if available, fallback to demo
+    rds_users = []
+    try:
+        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+            rds_users = list_users_admin()
+    except Exception as e:
+        print(f"[RDS users_list] {e}")
+    if rds_users:
+        # Adapt to template expected User-like object
+        adapted = []
+        for r in rds_users:
+            first_name, last_name = db_split_name(r.get('name'), r.get('username'))
+            role_lower = (r.get('role') or 'user').lower()
+            adapted.append(
+                User(
+                    id=str(r.get('id')),
+                    username=r.get('username'),
+                    email=r.get('email'),
+                    password_hash=generate_password_hash('placeholder'),
+                    role=role_lower,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+            )
+        return render_template('users_list.html', users=adapted, rds=True)
+    else:
+        users = list(example_users.values())
+        return render_template('users_list.html', users=users, rds=False)
+
+
+# ================================
+# Profile
+# ================================
+
+@app.route('/profile')
+@login_required
+def profile():
+    ctx = {}
+    try:
+        role = current_user.role
+        uid = int(str(current_user.id)) if current_user and current_user.id else None
+        if uid is not None:
+            ctx = get_doctor_dashboard(uid) if role == 'doctor' else get_patient_dashboard(uid)
+    except Exception as e:
+        print(f"[RDS profile] {e}")
+    return render_template('profile.html', user=current_user, rds=ctx)
 
 
 # ================================

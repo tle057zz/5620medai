@@ -12,8 +12,9 @@ Werkzeug==3.0.1
 # Additional utilities
 python-dotenv==1.0.0
 
-# Optional: Database support (for future migration from in-memory to database)
-# Flask-SQLAlchemy==3.1.1
+# Database support (optional but recommended)
+Flask-SQLAlchemy==3.1.1
+psycopg2-binary
 # Flask-Migrate==4.0.5
 
 # Optional: API support

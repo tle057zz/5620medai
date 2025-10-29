@@ -4,3 +4,7 @@ id,strategy,version,status,last_run_at,created_at
 3,Rules,v1,Active,,2025-10-28 12:03:26.724583+00:00
 4,Hybrid,v1,Active,,2025-10-28 12:06:25.459483+00:00
 5,Rules,v1,Active,,2025-10-28 12:06:59.077484+00:00
+9,Hybrid,v1,Active,,2025-10-29 02:59:01.661268+00:00
+10,Hybrid,v1,Active,,2025-10-29 02:59:31.997608+00:00
+12,Rules,v1,Active,,2025-10-29 03:01:50.987430+00:00
+13,Hybrid,v1,Active,,2025-10-29 03:01:57.804360+00:00

@@ -58,32 +58,84 @@ try:
                 print(f"{schema}.{table}: (count failed) {e}")
 
     # =============================
-    # Apply project schema (optional)
+    # Apply/Migrate schema (optional)
     # =============================
-    should_apply_schema = os.environ.get("APPLY_PROJECT_SCHEMA", "false").lower() in {"1","true","yes"}
-    if should_apply_schema:
+    def migrate_schema(cur, connection):
+        print("\n🛠  Migrating schema for approvals and enums (idempotent)...")
+        # Ensure we're not inside a transaction before changing autocommit
+        try:
+            connection.commit()
+        except Exception:
+            try:
+                connection.rollback()
+            except Exception:
+                pass
+        connection.set_session(autocommit=True)
+        # 1) Create approval_decision enum if missing
+        cur.execute(
+            """
+            DO $$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'approval_decision') THEN
+                CREATE TYPE approval_decision AS ENUM ('Approved','Rejected','NeedsChanges');
+              END IF;
+            END$$;
+            """
+        )
+        # 2) Add InPerson to appointment_type if missing
+        cur.execute(
+            """
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+                WHERE t.typname = 'appointment_type' AND e.enumlabel = 'InPerson') THEN
+                ALTER TYPE appointment_type ADD VALUE 'InPerson';
+              END IF;
+            END$$;
+            """
+        )
+        # 3) Create ai_approvals table if not exists
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_approvals (
+              id BIGSERIAL PRIMARY KEY,
+              medical_record_id BIGINT NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+              explanation_id BIGINT REFERENCES explanations(id) ON DELETE SET NULL,
+              doctor_id BIGINT NOT NULL REFERENCES doctors(user_id) ON DELETE CASCADE,
+              decision approval_decision NOT NULL,
+              notes TEXT,
+              signature_ref TEXT,
+              pipeline_version TEXT,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              signed_at TIMESTAMPTZ
+            );
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_approvals_record ON ai_approvals(medical_record_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_approvals_doctor ON ai_approvals(doctor_id);")
+        connection.set_session(autocommit=False)
+        print("✅ Migration complete")
+
+    if os.environ.get("APPLY_PROJECT_SCHEMA", "false").lower() in {"1","true","yes"}:
         print("\n📦 Applying project schema (elec5620_schema_postgres_v1.sql)...")
-        # Ensure no transaction is open before switching autocommit
         try:
             conn.commit()
         except Exception:
             pass
-        # Ensure citext is available for CITEXT columns
         conn.autocommit = True
         cursor.execute("CREATE EXTENSION IF NOT EXISTS citext;")
-
-        schema_path = os.path.join(
-            os.path.dirname(__file__),
-            "elec5620_schema_postgres_v1.sql",
-        )
+        schema_path = os.path.join(os.path.dirname(__file__), "elec5620_schema_postgres_v1.sql")
         with open(schema_path, "r", encoding="utf-8") as f:
             schema_sql = f.read()
-
         try:
             cursor.execute(schema_sql)
-            print("✅ Schema applied")
+            print("✅ Base schema applied")
         except Exception as schema_err:
-            print("⚠️  Schema apply error:", schema_err)
+            print("⚠️  Base schema error (continuing with migration):", schema_err)
+        migrate_schema(cursor, conn)
+    elif os.environ.get("MIGRATE_SCHEMA", "true").lower() in {"1","true","yes"}:
+        migrate_schema(cursor, conn)
 
         # Refresh table list
         cursor.execute(
@@ -198,9 +250,12 @@ try:
                         (controller_id, quote_id, user_patient_id),
                     )
 
-        # Return to regular commit mode and persist inserts
-        conn.autocommit = False
-        conn.commit()
+        # Persist inserts
+        try:
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            conn.commit()
         print("✅ Mock data inserted")
 
         # Sample queries to verify

@@ -328,6 +328,16 @@ def main():
                 """,
                 (mr_id,),
             )
+            # approval mock: assign to a random doctor
+            did = random.choice(doctor_ids)
+            decision = random.choice(['Approved','NeedsChanges'])
+            cur.execute(
+                """
+                INSERT INTO ai_approvals(medical_record_id, explanation_id, doctor_id, decision, notes, pipeline_version)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (mr_id, expl_id, did, decision, 'auto-generated approval', 'v1'),
+            )
             mr_count += 1
 
         # Ensure at least one record path exists

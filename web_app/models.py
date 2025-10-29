@@ -58,7 +58,8 @@ def create_example_users():
     users = {}
     
     # Common password for all example users (in production, use strong passwords)
-    password = 'password123'
+    # Updated demo password
+    password = 'Passw0rd!'
     password_hash = generate_password_hash(password)
     
     # 1. Example Doctors

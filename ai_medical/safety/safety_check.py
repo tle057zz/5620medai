@@ -465,6 +465,11 @@ def run() -> Tuple[Dict[str, Any], str, Optional[str]]:
     return report, summary_txt, fluent
 
 
+# Backward-compatible alias expected by web_app
+def run_safety_check() -> Tuple[Dict[str, Any], str, Optional[str]]:
+    return run()
+
+
 if __name__ == "__main__":
     rep, txt, fl = run()
     print(f"Wrote JSON: {SAFETY_JSON_PATH}")

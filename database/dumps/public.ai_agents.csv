@@ -1,3 +1,6 @@
 id,agent_name,api_key,api_address,model_version,active,created_at
 1,Local-Ollama,,http://127.0.0.1:11434,llama2,True,2025-10-28 12:03:05.456643+00:00
 2,Local-Ollama,,http://127.0.0.1:11434,llama2,True,2025-10-28 12:06:25.459483+00:00
+5,Local-Ollama,,http://127.0.0.1:11434,llama2,True,2025-10-29 02:59:01.661268+00:00
+6,Local-Ollama,,http://127.0.0.1:11434,llama2,True,2025-10-29 02:59:31.997608+00:00
+7,Local-Ollama,,http://127.0.0.1:11434,llama2,True,2025-10-29 03:01:57.804360+00:00

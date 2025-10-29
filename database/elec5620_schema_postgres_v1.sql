@@ -18,12 +18,15 @@ CREATE TYPE request_status AS ENUM ('Draft','Submitted','InReview','Completed','
 CREATE TYPE recommendation_strategy AS ENUM ('Rules','ML','Hybrid');
 CREATE TYPE recommendation_status AS ENUM ('Active','Paused');
 CREATE TYPE appointment_status AS ENUM ('Requested','Approved','Cancelled','Completed','Rescheduled');
-CREATE TYPE appointment_type AS ENUM ('Consult','FollowUp','Telehealth','Emergency','Other');
+CREATE TYPE appointment_type AS ENUM ('Consult','FollowUp','Telehealth','InPerson','Emergency','Other');
 CREATE TYPE job_kind AS ENUM ('OCR','IE','EXPLAIN','SAFETY');
 CREATE TYPE job_status AS ENUM ('Queued','Running','Succeeded','Failed');
 CREATE TYPE medical_record_status AS ENUM ('Uploaded','Processed','Explained','Checked','Archived');
 CREATE TYPE safety_flag_type AS ENUM ('Contraindication','Emergency','Allergy','Interaction');
 CREATE TYPE safety_severity AS ENUM ('Low','Medium','High');
+
+-- Review & Approval
+CREATE TYPE approval_decision AS ENUM ('Approved','Rejected','NeedsChanges');
 
 -- =====================
 -- CORE ACTORS
@@ -283,6 +286,25 @@ CREATE TABLE processing_jobs (
 
 CREATE INDEX idx_jobs_record ON processing_jobs(medical_record_id);
 CREATE INDEX idx_jobs_status ON processing_jobs(status);
+
+-- =====================
+-- AI OUTPUT APPROVALS (UC‑05)
+-- =====================
+CREATE TABLE ai_approvals (
+    id              BIGSERIAL PRIMARY KEY,
+    medical_record_id BIGINT NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    explanation_id  BIGINT REFERENCES explanations(id) ON DELETE SET NULL,
+    doctor_id       BIGINT NOT NULL REFERENCES doctors(user_id) ON DELETE CASCADE,
+    decision        approval_decision NOT NULL,
+    notes           TEXT,
+    signature_ref   TEXT,              -- points to doctors.digital_signature_ref or external vault
+    pipeline_version TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    signed_at       TIMESTAMPTZ
+);
+
+CREATE INDEX idx_ai_approvals_record ON ai_approvals(medical_record_id);
+CREATE INDEX idx_ai_approvals_doctor ON ai_approvals(doctor_id);
 
 -- =====================
 -- AUDIT

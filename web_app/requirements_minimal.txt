@@ -1,0 +1,28 @@
+# Minimal Web App Requirements (No Heavy ML)
+# Install with: pip install -r requirements_minimal.txt
+# Fast install, quick startup, all web features work
+
+# Core Web Framework
+flask==3.0.0
+flask-login==0.6.3
+flask-wtf==1.2.1
+flask-sqlalchemy==3.1.1
+wtforms==3.1.1
+werkzeug==3.0.1
+
+# Database
+sqlalchemy==2.0.23
+
+# Data Processing
+pandas==2.1.4
+
+# Optional: PDF Processing (uncomment if needed)
+# pdfplumber==0.11.4
+# pytesseract==0.3.13
+# pdf2image==1.17.0
+# pillow==10.1.0
+# pymupdf==1.23.8
+
+# Note: This excludes heavy ML libraries (torch, numpy, scispacy)
+# Web app will run with AI features disabled but all other features work
+
