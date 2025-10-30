@@ -1,7 +1,6 @@
 MANIFEST.in
 README.md
 meta.json
-setup.cfg
 setup.py
 en_core_sci_sm/__init__.py
 en_core_sci_sm/meta.json

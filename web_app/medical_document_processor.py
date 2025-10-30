@@ -9,8 +9,14 @@ import json
 import tempfile
 from typing import Dict, List, Tuple, Optional
 
-# Add parent directory to path to import ai_medical modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add project root and this web_app dir to sys.path so we can import either
+# the original ai_medical modules or the alternative UC1_models pipeline
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+WEB_APP_DIR = os.path.abspath(os.path.dirname(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+if WEB_APP_DIR not in sys.path:
+    sys.path.insert(0, WEB_APP_DIR)
 
 # =============================
 # Availability flags (granular)
@@ -22,26 +28,49 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # NLP pipeline availability (SpaCy models, etc.)
 NLP_AVAILABLE = False
 
+# Preferred: Local UC1_models pipeline (web_app/UC1_models)
 try:
-    from ai_medical.ocr.extract_text import extract_text_from_pdf  # noqa: F401
-    from ai_medical.sectionizer.sectionize_text import sectionize_text  # noqa: F401
-    from ai_medical.ner.extract_entities import extract_entities_from_sections  # noqa: F401
-    from ai_medical.linker.entity_linking import link_entities  # noqa: F401
+    from UC1_models.ocr.extract_text import extract_text_from_pdf  # type: ignore
+    from UC1_models.sectionizer.sectionize_text import sectionize_text  # type: ignore
+    from UC1_models.ner.extract_entities import extract_entities_from_sections  # type: ignore
+    from UC1_models.linker.entity_linking import link_entities  # type: ignore
     NLP_AVAILABLE = True
-except Exception as e:
-    print(f"Info: AI NLP pipeline disabled: {e}")
-    NLP_AVAILABLE = False
+    print("AI NLP pipeline: UC1_models (web_app) active")
+except Exception as uc1_err:
+    # Fallback: ai_medical package at project root
+    try:
+        from ai_medical.ocr.extract_text import extract_text_from_pdf  # type: ignore
+        from ai_medical.sectionizer.sectionize_text import sectionize_text  # type: ignore
+        from ai_medical.ner.extract_entities import extract_entities_from_sections  # type: ignore
+        from ai_medical.linker.entity_linking import link_entities  # type: ignore
+        NLP_AVAILABLE = True
+        print("AI NLP pipeline: ai_medical active")
+    except Exception as am_err:
+        print(f"Info: AI NLP pipeline disabled: UC1_models error={uc1_err} | ai_medical error={am_err}")
+        NLP_AVAILABLE = False
 
 # Safety checker availability (pure-Python, no heavy deps)
 SAFETY_AVAILABLE = False
 try:
-    from ai_medical.safety.safety_check import (  # type: ignore
-        _extract_condition_names,  # noqa: F401
-        _extract_medication_names,  # noqa: F401
-        _classify_medications,
-        _normalize_conditions,
-    )
-    SAFETY_AVAILABLE = True
+    # Prefer UC1_models safety if available, else ai_medical
+    try:
+        from UC1_models.safety.safety_check import (  # type: ignore
+            _extract_condition_names,  # noqa: F401
+            _extract_medication_names,  # noqa: F401
+            _classify_medications,
+            _normalize_conditions,
+        )
+        SAFETY_AVAILABLE = True
+        print("Safety checker: UC1_models active")
+    except Exception:
+        from ai_medical.safety.safety_check import (  # type: ignore
+            _extract_condition_names,  # noqa: F401
+            _extract_medication_names,  # noqa: F401
+            _classify_medications,
+            _normalize_conditions,
+        )
+        SAFETY_AVAILABLE = True
+        print("Safety checker: ai_medical active")
 except Exception as e:
     print(f"Info: Safety checker unavailable: {e}")
     SAFETY_AVAILABLE = False

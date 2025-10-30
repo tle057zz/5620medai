@@ -1,19 +1,12 @@
-Metadata-Version: 2.4
-Name: en_core_sci_sm
+Metadata-Version: 2.1
+Name: en-core-sci-sm
 Version: 0.5.1
 Summary: Spacy Models for Biomedical Text.
 Home-page: https://allenai.github.io/SciSpaCy/
 Author: Allen Institute for Artificial Intelligence
 Author-email: ai2-info@allenai.org
 License: CC BY-SA 3.0
-Requires-Dist: spacy<3.5.0,>=3.4.1
-Dynamic: author
-Dynamic: author-email
-Dynamic: description
-Dynamic: home-page
-Dynamic: license
-Dynamic: requires-dist
-Dynamic: summary
+Platform: UNKNOWN
 
 Spacy Models for Biomedical Text.
 
@@ -59,3 +52,4 @@ Spacy Models for Biomedical Text.
 | `ENTS_P` | 69.14 |
 | `ENTS_R` | 66.32 |
 | `NER_LOSS` | 18735142.59 |
+

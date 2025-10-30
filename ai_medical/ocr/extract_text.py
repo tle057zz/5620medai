@@ -1,4 +1,4 @@
-# ai_medical/ocr/extract_text.py
+# UC1_models/ocr/extract_text.py
 """
 OCR Extractor (Final Production-Grade Version)
 
@@ -84,13 +84,13 @@ def extract_text_from_pdf(pdf_path: str, verbose: bool = True) -> str:
 if __name__ == "__main__":
     # Resolve this file's directory for path independence
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    sample_path = os.path.join(this_dir, "Sampleocr.pdf")
+    sample_path = os.path.join(this_dir, "sample_medical_report_1.pdf")
 
     if os.path.exists(sample_path):
         text = extract_text_from_pdf(sample_path)
 
         # Save in the same module folder
-        output_path = os.path.join(this_dir, "Sampleocr_output.txt")
+        output_path = os.path.join(this_dir, "Medical_History_output.txt")
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(text)
 

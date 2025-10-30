@@ -183,3 +183,4 @@ if __name__ == "__main__":
         print("\nExample:")
         print("  python sectionize_with_ollama.py ../samples/sample_medical_report_1.pdf")
 
+

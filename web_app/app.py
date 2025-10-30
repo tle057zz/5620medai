@@ -397,13 +397,16 @@ def request_insurance_quote():
                 filename = secure_filename(uploaded_file.filename)
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 uploaded_file.save(file_path)
-                
+                print(f"✓ Uploaded file: {file_path}")
+
                 print(f"✓ Processing uploaded document: {filename}")
                 doc_result = process_uploaded_document(file_path)
-                
+                print(f"✓ Doc result: {doc_result}")
                 if doc_result['success']:
                     # Store extracted data in session for user review
                     session['document_data'] = doc_result
+                    # IMPORTANT: update local variable so merge logic in this same request sees fresh data
+                    document_data = doc_result
                     flash(f"✓ Document processed! Extracted {len(doc_result['conditions'])} conditions and {len(doc_result['medications'])} medications.", 'success')
                     print(f"✓ Extracted: {doc_result['conditions']}, {doc_result['medications']}")
                 else:
@@ -436,6 +439,22 @@ def request_insurance_quote():
             health_data.smoking_status = form.smoking_status.data
             health_data.alcohol_consumption = form.alcohol_consumption.data
             
+            # Merge AI-extracted data from uploaded document into health_data
+            if document_data and document_data.get('success'):
+                obs = document_data.get('observations', {}) or {}
+                if not health_data.blood_pressure and obs.get('blood_pressure'):
+                    health_data.blood_pressure = obs['blood_pressure']
+                if not health_data.bmi and obs.get('bmi'):
+                    health_data.bmi = obs['bmi']
+                if not health_data.glucose and obs.get('glucose'):
+                    health_data.glucose = obs['glucose']
+                if not health_data.cholesterol and obs.get('cholesterol'):
+                    health_data.cholesterol = obs['cholesterol']
+                if not health_data.conditions and document_data.get('conditions'):
+                    health_data.conditions = document_data['conditions']
+                if not health_data.medications and document_data.get('medications'):
+                    health_data.medications = document_data['medications']
+            
             quote_request.health_data = health_data
             
             # Populate medical history
@@ -452,6 +471,34 @@ def request_insurance_quote():
             
             family_hist_text = form.family_history.data or ''
             medical_history.family_history = [f.strip() for f in family_hist_text.replace('\n', ',').split(',') if f.strip()]
+            
+            # Merge AI-extracted procedures as surgeries if user left field empty
+            if document_data and document_data.get('success'):
+                if not medical_history.surgeries and document_data.get('procedures'):
+                    medical_history.surgeries = document_data['procedures']
+                # Best-effort parse of Medical History section from raw_text into past_conditions
+                if not medical_history.past_conditions:
+                    raw_text = document_data.get('raw_text') or ''
+                    try:
+                        import re
+                        m = re.search(r"Medical History:\n(.*?)(?:\n[A-Z][A-Za-z ]+:|\Z)", raw_text, re.S)
+                        extracted = []
+                        if m:
+                            block = m.group(1)
+                            for line in block.splitlines():
+                                s = line.replace('(cid:127)', '').strip('-• \t')
+                                if not s:
+                                    continue
+                                if '(diagnosed' in s:
+                                    s = s.split('(diagnosed')[0].strip()
+                                extracted.append(s)
+                        if not extracted and document_data.get('conditions'):
+                            extracted = document_data['conditions']
+                        if extracted:
+                            medical_history.past_conditions = extracted
+                    except Exception:
+                        if document_data.get('conditions'):
+                            medical_history.past_conditions = document_data['conditions']
             
             quote_request.medical_history = medical_history
             
@@ -1486,8 +1533,9 @@ if __name__ == '__main__':
     for username, user in example_users.items():
         print(f"  Role: {user.role.upper():10} | Username: {username:15} | Password: password123")
     print("-" * 60)
-    print("\n🌐 Server starting at: http://127.0.0.1:5000")
+    print("\n🌐 Server starting at: http://127.0.0.1:5000 Thanh")
     print("Press CTRL+C to stop the server\n")
+    
     
     app.run(debug=True, host='0.0.0.0', port=5000)
 

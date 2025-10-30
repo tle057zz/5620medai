@@ -1,0 +1,414 @@
+{
+  "resourceType": "Bundle",
+  "id": "4bd5b113-3e64-4bad-8756-2a971958ec0c",
+  "type": "collection",
+  "timestamp": "2025-10-30T11:22:58Z",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/Bundle"
+    ],
+    "tag": [
+      {
+        "system": "http://example.org/source",
+        "code": "AI_Medical_Pipeline"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "f2665c23-fe73-473d-b22d-8e1958f88da4",
+        "code": {
+          "text": "hypertension",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "38341003",
+              "display": "hypertension"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "5e4f955b-ffee-4e36-a6cb-5dd4de470f9d",
+        "code": {
+          "text": "hyperlipidemia",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "55822004",
+              "display": "hyperlipidemia"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "5db0fe1b-b300-42e8-800f-cd9ea64f366a",
+        "code": {
+          "text": "stroke",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "230690007",
+              "display": "stroke"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "ab43e28c-36de-4a98-8245-67fbc00c70ad",
+        "code": {
+          "text": "cardiac failure",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "84114007",
+              "display": "cardiac failure"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "1b52e8b3-7d55-407f-a39e-58ec89e3c9fd",
+        "code": {
+          "text": "chronic renal disease",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "90721000119101",
+              "display": "chronic renal disease"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "93dff14b-6fe7-4595-b74b-ce0183524f31",
+        "code": {
+          "text": "dementia",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "52448006",
+              "display": "dementia"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "97b84565-c0f6-43a4-9191-b3a19c16d4be",
+        "code": {
+          "text": "psychotic symptoms",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "30746006",
+              "display": "psychotic symptoms"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "625ea3e0-8952-4cf9-b7f4-16b57eeab228",
+        "code": {
+          "text": "memory deficit",
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "386807006",
+              "display": "memory deficit"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active",
+              "display": "Active"
+            }
+          ],
+          "text": "active"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "asserter": {
+          "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+        },
+        "onsetDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "d05fe1cb-9c05-4adb-98af-72fd7af85a4b",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "period": {
+          "start": "2025-10-30T11:22:58Z",
+          "end": "2025-10-30T11:22:58Z"
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "7d1bdab4-6cfe-4b6f-990f-d23038407cd6",
+        "status": "final",
+        "code": {
+          "text": "MRI brain scan",
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "24727-0",
+              "display": "MRI brain scan"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "performer": [
+          {
+            "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+          }
+        ],
+        "effectiveDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ff3b5960-bd9e-453e-86c5-a23a2c54d41d",
+        "status": "final",
+        "code": {
+          "text": "CT brain",
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "36626-4",
+              "display": "CT brain"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "performer": [
+          {
+            "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+          }
+        ],
+        "effectiveDateTime": "2025-10-30T11:22:58Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "19aecb45-8044-472b-bfbe-190eb49303f9",
+        "name": "Blackacre Hospital"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "7a3b462d-ac82-4fff-893b-a5ea43abcae4",
+        "name": "ABC Hospital"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "cbb7ee7e-d28a-489e-851e-01766b92a9db",
+        "name": [
+          {
+            "text": "Mr Tan"
+          }
+        ],
+        "gender": "male",
+        "managingOrganization": {
+          "reference": "Organization/19aecb45-8044-472b-bfbe-190eb49303f9"
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Practitioner",
+        "id": "a00b3952-e199-4ab7-bf7d-88bea5490a1c",
+        "name": [
+          {
+            "text": "Unknown Practitioner"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Procedure",
+        "id": "98f8b023-7b92-456e-b03b-a7acfde2f978",
+        "status": "completed",
+        "code": {
+          "text": "rehabilitation"
+        },
+        "subject": {
+          "reference": "Patient/cbb7ee7e-d28a-489e-851e-01766b92a9db"
+        },
+        "performer": [
+          {
+            "actor": {
+              "reference": "Practitioner/a00b3952-e199-4ab7-bf7d-88bea5490a1c"
+            }
+          }
+        ],
+        "performedDateTime": "2025-10-30T11:22:58Z"
+      }
+    }
+  ]
+}

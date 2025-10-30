@@ -1,0 +1,169 @@
+{
+    "INTRODUCTION": [
+        {
+            "text": "Patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Birth",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MRN-2024-001234 Date of Visit",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "complaints",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "increased",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "frequent",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "urination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "fatigue",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "months",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "thirst",
+            "label": "DISEASE",
+            "confidence": "high"
+        }
+    ],
+    "BLOOD PRESSURE": [],
+    "BMI": [
+        {
+            "text": "diagnosed",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Type 2 Diabetes Mellitus",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "Hypertension",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "Hyperlipidemia",
+            "label": "DISEASE",
+            "confidence": "high"
+        }
+    ],
+    "MEDICATIONS": [
+        {
+            "text": "twice",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "once daily 3",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Atorvastatin",
+            "label": "MEDICATION",
+            "confidence": "low"
+        },
+        {
+            "text": "once daily",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Aspirin",
+            "label": "MEDICATION",
+            "confidence": "low"
+        },
+        {
+            "text": "once daily Laboratory Results",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Blood Glucose",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "HbA1c",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Type 2 Diabetes Mellitus",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "poorly",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "controlled",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Essential",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Hypertension",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "moderately",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Hyperlipidemia",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "treatment Dr. Sarah Johnson",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MD Internal Medicine",
+            "label": "MEDICATION",
+            "confidence": "low"
+        },
+        {
+            "text": "Diabetes Mellitus",
+            "label": "DISEASE",
+            "confidence": "high"
+        }
+    ]
+}
