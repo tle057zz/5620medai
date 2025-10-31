@@ -8,7 +8,7 @@ from typing import List, Tuple
 import re
 from insurance_models import (
     QuoteRequest, InsuranceQuote, InsuranceProduct,
-    get_sample_insurance_products
+    get_sample_insurance_products, get_au_insurance_products
 )
 
 # Try to import medical safety assessment
@@ -24,7 +24,14 @@ class InsuranceQuoteEngine:
     """AI-powered insurance quote matching engine"""
     
     def __init__(self):
-        self.products = get_sample_insurance_products()
+        # Prefer Australian fund catalog products; fallback to sample if import fails
+        try:
+            products = get_au_insurance_products()
+            if not products:
+                raise ValueError('empty products')
+            self.products = products
+        except Exception:
+            self.products = get_sample_insurance_products()
         self.risk_factors = {
             'diabetes': 2.5,
             'hypertension': 1.8,

@@ -160,6 +160,119 @@ class QuoteRequest:
 
 
 # ================================
+# Australian Private Health Funds (2025)
+# ================================
+
+def get_au_health_funds() -> List[Dict[str, str]]:
+    """Return catalog of Australian health funds (open and restricted).
+
+    Fields: name, type (open|restricted), not_for_profit (bool), notes
+    """
+    catalog: List[Dict[str, str]] = [
+        # Open membership (anyone can join)
+        {"name": "Bupa Australia", "type": "open", "nfp": False, "notes": "Large national network"},
+        {"name": "Medibank Private", "type": "open", "nfp": False, "notes": "Owns ahm brand"},
+        {"name": "ahm (by Medibank)", "type": "open", "nfp": False, "notes": "Budget-focused"},
+        {"name": "HCF", "type": "open", "nfp": True, "notes": "Largest NFP; strong extras"},
+        {"name": "nib Health Funds", "type": "open", "nfp": False, "notes": "Popular with young singles"},
+        {"name": "HBF Health", "type": "open", "nfp": True, "notes": "WA based"},
+        {"name": "Australian Unity Health", "type": "open", "nfp": True, "notes": "Member-owned mutual"},
+        {"name": "GMHBA Health Insurance", "type": "open", "nfp": True, "notes": "Owns Frank and MyOwn"},
+        {"name": "Health Partners", "type": "open", "nfp": True, "notes": "SA based; dental & optical"},
+        {"name": "HIF", "type": "open", "nfp": True, "notes": "Flexible extras"},
+        {"name": "St Lukes Health", "type": "open", "nfp": True, "notes": "TAS based"},
+        {"name": "Latrobe Health Services", "type": "open", "nfp": True, "notes": "VIC based"},
+        {"name": "Westfund Health Insurance", "type": "open", "nfp": True, "notes": "Regional NSW & QLD"},
+        {"name": "Phoenix Health Fund", "type": "open", "nfp": True, "notes": "NSW; small member focus"},
+        {"name": "AIA Health Insurance", "type": "open", "nfp": False, "notes": "With Vitality rewards"},
+        {"name": "MyOwn Health Insurance", "type": "open", "nfp": False, "notes": "GMHBA & AIA"},
+        {"name": "Health Care Insurance (HCI)", "type": "open", "nfp": True, "notes": "TAS small fund"},
+        {"name": "Queensland Country Health", "type": "open", "nfp": True, "notes": "Regional QLD"},
+        {"name": "Mildura Health Fund", "type": "open", "nfp": True, "notes": "Regional VIC"},
+        {"name": "National Health Benefits Australia (onemedifund)", "type": "open", "nfp": True, "notes": "Online first"},
+        # Restricted membership (eligibility required)
+        {"name": "Defence Health", "type": "restricted", "nfp": True, "notes": "ADF personnel & family"},
+        {"name": "Police Health", "type": "restricted", "nfp": True, "notes": "Police & families"},
+        {"name": "Teachers Health", "type": "restricted", "nfp": True, "notes": "Education sector; incl. UniHealth & NMH"},
+        {"name": "Navy Health", "type": "restricted", "nfp": True, "notes": "Defence sector"},
+        {"name": "Doctors' Health Fund", "type": "restricted", "nfp": True, "notes": "Medical professionals"},
+        {"name": "CBHS Health Fund", "type": "restricted", "nfp": True, "notes": "Commonwealth Bank group"},
+        {"name": "Reserve Bank Health Society", "type": "restricted", "nfp": True, "notes": "RBA & finance sector"},
+        {"name": "ACA Health Benefits Fund", "type": "restricted", "nfp": True, "notes": "Adventist community"},
+        {"name": "RT Health Fund", "type": "restricted", "nfp": True, "notes": "Transport workers; part of Police Health Group"},
+        {"name": "Transport Health / Union Health", "type": "restricted", "nfp": True, "notes": "Union/transport; QLD"},
+    ]
+    return catalog
+
+
+def get_au_insurance_products() -> List[InsuranceProduct]:
+    """Build InsuranceProduct entries from AU health fund catalog.
+
+    Since real premiums/benefits vary, this function generates representative
+    plans using heuristics so the quote engine can rank providers sensibly.
+    """
+    funds = get_au_health_funds()
+    products: List[InsuranceProduct] = []
+
+    for f in funds:
+        name = f["name"]
+        is_nfp = bool(f["nfp"])
+        is_restricted = f["type"] == "restricted"
+
+        # Derive a plan profile
+        if "ahm" in name.lower():
+            plan_type = 'HMO'
+            premium = 260
+            coverage_amount = 250000
+            deductible = 3500
+            max_oop = 7500
+            details = ['Hospitalization coverage', 'Outpatient services', 'Prescription drugs']
+        elif any(k in name for k in ['Bupa', 'Medibank', 'nib', 'AIA']):
+            plan_type = 'PPO'
+            premium = 420
+            coverage_amount = 750000
+            deductible = 2000
+            max_oop = 6000
+            details = ['Hospitalization coverage', 'Outpatient services', 'Prescription drugs', 'Preventive care', 'Mental health services']
+        elif is_restricted:
+            plan_type = 'EPO'
+            premium = 320
+            coverage_amount = 750000
+            deductible = 1800
+            max_oop = 5000
+            details = ['Hospitalization coverage', 'Outpatient services', 'Prescription drugs', 'Maternity care', 'Chronic disease management']
+        else:
+            plan_type = 'EPO' if is_nfp else 'HMO'
+            premium = 300 if is_nfp else 340
+            coverage_amount = 500000
+            deductible = 2500
+            max_oop = 6500
+            details = ['Hospitalization coverage', 'Outpatient services', 'Prescription drugs', 'Preventive care']
+
+        exclusions = ['Cosmetic procedures', 'Experimental treatments']
+        if plan_type == 'HMO':
+            exclusions.append('Out-of-network services')
+
+        products.append(
+            InsuranceProduct(
+                product_id=f"AU-{len(products)+1:03}",
+                name=f"{name} Standard Hospital + Extras",
+                provider=name,
+                plan_type=plan_type,
+                coverage_amount=coverage_amount,
+                monthly_premium=premium,
+                annual_deductible=deductible,
+                copay=25,
+                coinsurance=20,
+                max_out_of_pocket=max_oop,
+                coverage_details=details + ['Chronic disease management' if is_nfp or is_restricted else 'Telemedicine services'],
+                exclusions=exclusions,
+            )
+        )
+
+    return products
+
+# ================================
 # Sample Insurance Products (Mock Data)
 # ================================
 

@@ -20,7 +20,9 @@
                         <a href="{{ url_for('prefill_from_document') }}" class="btn btn-sm btn-success ml-2">
                             <i class="fas fa-magic"></i> Auto-Fill Form
                         </a>
-                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        <a href="{{ url_for('clear_extracted_document_data') }}" class="close" aria-label="Close" title="Dismiss">
+                            &times;
+                        </a>
                     </div>
                     {% endif %}
                     

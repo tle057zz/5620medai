@@ -7,7 +7,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, ses
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 
@@ -59,6 +59,17 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+# Session & remember-me configuration (persist login across restarts like real sites)
+app.config['SESSION_COOKIE_NAME'] = os.environ.get('SESSION_COOKIE_NAME', 'clinical_ai_session')
+app.config['SESSION_COOKIE_SAMESITE'] = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -72,6 +83,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
+login_manager.remember_cookie_duration = timedelta(days=30)
 
 # Info: DB-backed login toggle
 if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
@@ -152,7 +164,10 @@ def login():
         demo_candidate = get_user_by_username(username)
         if demo_candidate and demo_candidate.role == 'admin':
             if demo_candidate.check_password(password) or password == 'password123':
-                login_user(demo_candidate, remember=form.remember_me.data)
+                session.permanent = True
+                remember_flag = getattr(form, 'remember_me', None)
+                remember_val = bool(remember_flag.data) if remember_flag is not None else True
+                login_user(demo_candidate, remember=remember_val)
                 print(f"✓ Demo admin logged in: {demo_candidate.username}")
                 flash(f'Welcome back, {demo_candidate.get_display_name()}!', 'success')
                 next_page = request.args.get('next')
@@ -177,7 +192,10 @@ def login():
                         first_name=first_name,
                         last_name=last_name,
                     )
-                    login_user(mapped, remember=form.remember_me.data)
+                    session.permanent = True
+                    remember_flag = getattr(form, 'remember_me', None)
+                    remember_val = bool(remember_flag.data) if remember_flag is not None else True
+                    login_user(mapped, remember=remember_val)
                     print(f"✓ DB user logged in: {mapped.username} ({mapped.role})")
                     flash(f'Welcome back, {mapped.get_display_name()}!', 'success')
                     next_page = request.args.get('next')
@@ -187,7 +205,10 @@ def login():
 
         # Fallback to demo accounts for non-admins
         if demo_candidate and demo_candidate.check_password(password):
-            login_user(demo_candidate, remember=form.remember_me.data)
+            session.permanent = True
+            remember_flag = getattr(form, 'remember_me', None)
+            remember_val = bool(remember_flag.data) if remember_flag is not None else True
+            login_user(demo_candidate, remember=remember_val)
             print(f"✓ Demo user logged in: {demo_candidate.username} ({demo_candidate.role})")
             flash(f'Welcome back, {demo_candidate.get_display_name()}!', 'success')
             next_page = request.args.get('next')
@@ -204,6 +225,11 @@ def logout():
     """Logout user"""
     username = current_user.username
     logout_user()
+    try:
+        # Clear any transient state
+        session.pop('document_data', None)
+    except Exception:
+        pass
     flash(f'You have been logged out successfully.', 'info')
     print(f"✓ User logged out: {username}")
     return redirect(url_for('login'))
@@ -531,9 +557,18 @@ def request_insurance_quote():
             
             if success:
                 flash(f'Success! {message}', 'success')
+                # Clear any stale document extraction so alerts don't persist across tabs/pages
+                try:
+                    session.pop('document_data', None)
+                except Exception:
+                    pass
                 return redirect(url_for('view_insurance_quotes', request_id=request_id))
             else:
                 flash(f'Unable to generate quotes: {message}', 'warning')
+                try:
+                    session.pop('document_data', None)
+                except Exception:
+                    pass
                 return redirect(url_for('insurance_no_results', request_id=request_id))
                 
         except Exception as e:
@@ -580,6 +615,11 @@ def prefill_from_document():
     if obs.get('cholesterol'):
         form.cholesterol.data = obs['cholesterol']
     
+    # Clear the session banner so it doesn't persist across tabs/pages
+    try:
+        session.pop('document_data', None)
+    except Exception:
+        pass
     flash('✓ Form pre-filled with data from your medical document!', 'success')
     return render_template('insurance_quote_form.html', form=form, 
                           ai_medical_available=AI_MEDICAL_AVAILABLE,
@@ -625,6 +665,19 @@ def insurance_no_results(request_id):
         return redirect(url_for('dashboard'))
     
     return render_template('insurance_no_results.html', quote_request=quote_request)
+
+
+@app.route('/insurance/clear-doc-data')
+@login_required
+def clear_extracted_document_data():
+    """Clear AI-extracted document data from session to stop persistent banner."""
+    try:
+        session.pop('document_data', None)
+        flash('Cleared extracted document data.', 'info')
+    except Exception:
+        pass
+    # Redirect back to where user came from, fallback to request-quote
+    return redirect(request.referrer or url_for('request_insurance_quote'))
 
 
 @app.route('/insurance/history')
