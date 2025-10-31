@@ -6,6 +6,8 @@ NOW WITH ENHANCED MEDICAL SAFETY ASSESSMENT!
 
 from typing import List, Tuple
 import re
+import os
+import html as _html
 from insurance_models import (
     QuoteRequest, InsuranceQuote, InsuranceProduct,
     get_sample_insurance_products, get_au_insurance_products
@@ -89,7 +91,9 @@ class InsuranceQuoteEngine:
             'employment_stable': request.income_details.employment_status in ['full-time', 'self-employed'],
             'family_history': request.medical_history.family_history,
             'surgeries_count': len(request.medical_history.surgeries),
-            'hospitalizations_count': len(request.medical_history.hospitalizations)
+            'hospitalizations_count': len(request.medical_history.hospitalizations),
+            'request_id': getattr(request, 'request_id', 'REQ'),
+            'use_ai_explainer': getattr(request, 'use_ai_explainer', False)
         }
         return normalized
     
@@ -257,6 +261,8 @@ class InsuranceQuoteEngine:
             product, normalized_data, risk_score,
             suitability_score, cost_score, coverage_score
         )
+        # Optionally augment with local LLM explanations and persist
+        rationale = self._maybe_augment_with_ai(rationale, product, normalized_data, risk_score)
         
         return InsuranceQuote(
             product=product,
@@ -265,6 +271,44 @@ class InsuranceQuoteEngine:
             coverage_score=coverage_score,
             rationale=rationale
         )
+
+    def _maybe_augment_with_ai(self, baseline: str, product: InsuranceProduct,
+                                normalized_data: dict, risk_score: float) -> str:
+        """Append AI-generated explanations (llama & mistral) when enabled.
+
+        Controlled by env USE_LLM_EXPLAINER in {1,true,yes}. Saves outputs to
+        web_app/UC1_models/reason.
+        """
+        if not normalized_data.get('use_ai_explainer'):
+            return baseline
+        try:
+            from ai_explainer import generate_ai_rationales
+            save_dir = os.path.join(os.path.dirname(__file__), 'UC1_models', 'reason')
+            req_id = normalized_data.get('request_id', 'REQ')
+            product_id = getattr(product, 'product_id', 'PID')
+            ration = generate_ai_rationales(
+                product=product.to_dict(),
+                profile=normalized_data,
+                risk_score=risk_score,
+                save_dir=save_dir,
+                request_id=req_id,
+                product_id=product_id,
+            )
+            mistral_txt = (ration.get('mistral:7b-instruct') or '').strip()
+            pieces = [baseline]
+            if mistral_txt:
+                safe_txt = _html.escape(mistral_txt)
+                ai_html = (
+                    f"<div class=\"mt-1\">"
+                    f"<span class=\"badge bg-info text-dark\">AI</span> "
+                    f"<span class=\"text-primary\"><strong><em>{safe_txt}</em></strong></span> "
+                    f"<small class=\"text-muted\">— analyzed by AI</small>"
+                    f"</div>"
+                )
+                pieces.append(ai_html)
+            return "<br/>".join(pieces)
+        except Exception:
+            return baseline
     
     def _calculate_suitability(self, product: InsuranceProduct,
                               normalized_data: dict, risk_score: float) -> float:

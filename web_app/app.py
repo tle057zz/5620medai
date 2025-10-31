@@ -446,6 +446,12 @@ def request_insurance_quote():
             
             # Create a new quote request
             quote_request = QuoteRequest(user_id=current_user.id)
+            # Optional: user-selected AI analyzer for rationale
+            try:
+                use_ai = request.form.get('use_ai_analyzer') in {'on','true','1'}
+                setattr(quote_request, 'use_ai_explainer', use_ai)
+            except Exception:
+                pass
             
             # Populate health data
             health_data = HealthData()
