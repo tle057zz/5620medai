@@ -31,6 +31,62 @@
         </div>
     </div>
 
+    <!-- Original Document Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            {% set has_file = result.file_path or result.original_filename %}
+            <div class="card {% if has_file %}border-info{% else %}border-secondary{% endif %} shadow-sm">
+                <div class="card-header {% if has_file %}bg-info text-white{% else %}bg-secondary text-white{% endif %}">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-medical"></i> Original Uploaded Document
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            {% if has_file %}
+                            <p class="mb-1">
+                                <strong>File:</strong> 
+                                <code>{{ result.original_filename or result.file_path.split('/')[-1] if result.file_path else 'Document' }}</code>
+                            </p>
+                            {% if result.file_path %}
+                            <p class="mb-0 text-muted small">
+                                <i class="bi bi-folder"></i> Stored at: <code>{{ result.file_path }}</code>
+                            </p>
+                            {% endif %}
+                            {% else %}
+                            <p class="mb-0 text-muted">
+                                <i class="bi bi-exclamation-circle"></i> Original file not available for this analysis.
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                {% if has_file %}
+                                <a href="{{ url_for('view_clinical_analysis_file', analysis_id=result.analysis_id) }}" 
+                                   class="btn btn-info" target="_blank" title="View Original Document">
+                                    <i class="bi bi-eye"></i> View Document
+                                </a>
+                                <a href="{{ url_for('download_clinical_analysis_file', analysis_id=result.analysis_id) }}" 
+                                   class="btn btn-success" title="Download Original File">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                                {% else %}
+                                <button class="btn btn-secondary" disabled title="File not available">
+                                    <i class="bi bi-eye-slash"></i> View Document
+                                </button>
+                                <button class="btn btn-secondary" disabled title="File not available">
+                                    <i class="bi bi-download"></i> Download
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Risk Level Alert -->
     {% if result.risk_level in ['high', 'critical'] %}
     <div class="row mb-4">
@@ -324,19 +380,49 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            {% set has_file = result.file_path or result.original_filename %}
+                            {% if has_file %}
+                            <a href="{{ url_for('view_clinical_analysis_file', analysis_id=result.analysis_id) }}" 
+                               class="btn btn-info w-100" target="_blank" title="View Original Document">
+                                <i class="bi bi-eye"></i> View Document
+                            </a>
+                            <small class="text-muted d-block mt-1">{{ result.original_filename or (result.file_path.split('/')[-1] if result.file_path else 'View file') }}</small>
+                            {% else %}
+                            <button class="btn btn-secondary w-100" disabled title="File not available">
+                                <i class="bi bi-eye-slash"></i> View Document
+                            </button>
+                            <small class="text-muted d-block mt-1">File not available</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            {% set has_file = result.file_path or result.original_filename %}
+                            {% if has_file %}
+                            <a href="{{ url_for('download_clinical_analysis_file', analysis_id=result.analysis_id) }}" 
+                               class="btn btn-success w-100" title="Download Original File">
+                                <i class="bi bi-download"></i> Download File
+                            </a>
+                            <small class="text-muted d-block mt-1">Save to device</small>
+                            {% else %}
+                            <button class="btn btn-secondary w-100" disabled title="File not available">
+                                <i class="bi bi-download"></i> Download File
+                            </button>
+                            <small class="text-muted d-block mt-1">File not available</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
                             <a href="{{ url_for('download_fhir_bundle', analysis_id=result.analysis_id) }}" 
                                class="btn btn-primary w-100">
                                 <i class="bi bi-file-earmark-medical"></i> Download FHIR Bundle (JSON)
                             </a>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <a href="{{ url_for('download_clinical_report', analysis_id=result.analysis_id) }}" 
                                class="btn btn-outline-primary w-100">
                                 <i class="bi bi-file-earmark-text"></i> Download Complete Report (JSON)
                             </a>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <button onclick="window.print()" class="btn btn-outline-secondary w-100">
                                 <i class="bi bi-printer"></i> Print Results
                             </button>
@@ -347,8 +433,28 @@
         </div>
     </div>
 
+    <!-- Doctor Recommendations (for patients only) -->
+    {% if current_user.role == 'patient' %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-people-fill"></i> Need a Doctor Review?
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Get AI-powered recommendations for suitable doctors who can review your analysis results.</p>
+                    <a href="{{ url_for('recommend_doctors_for_analysis', analysis_id=result.analysis_id) }}" 
+                       class="btn btn-info">
+                        <i class="bi bi-search"></i> Find Suitable Doctors
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Actions -->
-    <div class="row">
+    <div class="row mt-4">
         <div class="col-12">
             <div class="d-flex gap-2">
                 <a href="{{ url_for('clinical_analysis') }}" class="btn btn-primary">

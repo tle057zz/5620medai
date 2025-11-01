@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Profile - {{ doctor.name or doctor.username }} - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    {% if current_user.role == 'patient' %}
+                    <li class="breadcrumb-item"><a href="{{ url_for('clinical_analysis_history') }}">Clinical Analysis</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">Doctor Profile</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-person-badge"></i> 
+                        {% if doctor.name %}
+                            Dr. {{ doctor.name }}
+                        {% else %}
+                            {{ doctor.username }}
+                        {% endif %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2 mb-3">Professional Information</h5>
+                            
+                            {% if doctor.specialization %}
+                            <p>
+                                <strong><i class="bi bi-briefcase text-primary"></i> Specialization:</strong><br>
+                                <span class="badge bg-info fs-6">{{ doctor.specialization }}</span>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.qualification %}
+                            <p>
+                                <strong><i class="bi bi-award text-primary"></i> Qualification:</strong><br>
+                                {{ doctor.qualification }}
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.ahpra_number %}
+                            <p>
+                                <strong><i class="bi bi-shield-check text-primary"></i> AHPRA Provider / Registration No.:</strong><br>
+                                <code>{{ doctor.ahpra_number }}</code>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.license_number %}
+                            <p>
+                                <strong><i class="bi bi-file-earmark-medical text-primary"></i> License Number:</strong><br>
+                                <code>{{ doctor.license_number }}</code>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.approval_status %}
+                            <p>
+                                <strong><i class="bi bi-check-circle text-primary"></i> Status:</strong><br>
+                                <span class="badge bg-{% if doctor.approval_status == 'Approved' %}success{% elif doctor.approval_status == 'Pending' %}warning{% else %}danger{% endif %}">
+                                    {{ doctor.approval_status }}
+                                </span>
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2 mb-3">Contact Information</h5>
+                            
+                            {% if doctor.clinic_address %}
+                            <p>
+                                <strong><i class="bi bi-geo-alt text-primary"></i> Clinic Address:</strong><br>
+                                {{ doctor.clinic_address }}
+                                {% if doctor.clinic_address %}
+                                <br><a href="https://www.google.com/maps/search/?api=1&query={{ doctor.clinic_address|urlencode }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-primary mt-1">
+                                    <i class="bi bi-map"></i> View on Map
+                                </a>
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.email %}
+                            <p>
+                                <strong><i class="bi bi-envelope text-primary"></i> Email:</strong><br>
+                                <a href="mailto:{{ doctor.email }}" class="text-decoration-none">
+                                    <i class="bi bi-envelope-fill"></i> {{ doctor.email }}
+                                </a>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.ahpra_number %}
+                            <p class="mb-0">
+                                <strong><i class="bi bi-shield-check text-primary"></i> AHPRA Registration:</strong><br>
+                                <code>{{ doctor.ahpra_number }}</code>
+                                <br><small class="text-muted">Verify registration at <a href="https://www.ahpra.gov.au/" target="_blank">AHPRA</a></small>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if doctor.doctor_created_at or doctor.user_created_at %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <small class="text-muted">
+                                {% if doctor.doctor_created_at %}
+                                <i class="bi bi-calendar"></i> Doctor profile created: {{ doctor.doctor_created_at.strftime('%B %d, %Y') if doctor.doctor_created_at else 'N/A' }}
+                                {% endif %}
+                                {% if doctor.user_created_at and doctor.doctor_created_at != doctor.user_created_at %}
+                                <br><i class="bi bi-person-plus"></i> Account created: {{ doctor.user_created_at.strftime('%B %d, %Y') if doctor.user_created_at else 'N/A' }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% if current_user.role == 'patient' %}
+                        {% if doctor.email %}
+                        <a href="mailto:{{ doctor.email }}?subject=Medical Review Request&body=Dear Dr. {{ doctor.name or doctor.username }},%0D%0A%0D%0AI would like to request a review of my clinical analysis results.%0D%0A%0D%0AThank you." 
+                           class="btn btn-primary">
+                            <i class="bi bi-envelope"></i> Contact Doctor
+                        </a>
+                        {% endif %}
+                        <button class="btn btn-outline-primary" disabled>
+                            <i class="bi bi-calendar-check"></i> Book Appointment
+                            <small class="d-block">Coming Soon</small>
+                        </button>
+                        {% endif %}
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Go Back
+                        </a>
+                        {% if current_user.role == 'patient' %}
+                        <a href="{{ url_for('clinical_analysis_history') }}" class="btn btn-outline-info">
+                            <i class="bi bi-file-medical"></i> My Analyses
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

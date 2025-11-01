@@ -61,7 +61,14 @@ from rds_repository import (
     get_doctor_approval_status,
     get_patient_recent_medical_records,
     save_medical_record_to_rds,
+    get_all_approved_doctors,
+    get_doctor_complete_profile,
+    save_review_request,
+    get_pending_reviews_for_doctor,
+    get_review_status_for_analysis,
+    update_approval_decision_in_rds,
 )
+from doctor_recommender import recommend_doctors
 try:
     from aws_persistence import save_quotes_to_rds
 except Exception:
@@ -1545,14 +1552,40 @@ def clinical_analysis():
                 flash('Please select a medical document to analyze.', 'danger')
                 return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
             
-            # Save uploaded file temporarily
-            filename = secure_filename(uploaded_file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            # Get user ID for folder structure
+            try:
+                user_id = int(current_user.id) if isinstance(current_user.id, (int, str)) else current_user.id
+            except (ValueError, TypeError):
+                try:
+                    from db_auth import fetch_user as db_fetch_user
+                    db_user = db_fetch_user(current_user.username)
+                    if db_user and db_user.get('id'):
+                        user_id = int(db_user['id'])
+                    else:
+                        user_id = current_user.id
+                except Exception:
+                    user_id = current_user.id
+            
+            # Generate analysis_id before saving file (to use in folder name)
+            from datetime import datetime
+            analysis_id_temp = f"CA-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            
+            # Create folder structure: uploads/user_id_analysis_id/
+            folder_name = f"{user_id}_{analysis_id_temp}"
+            user_analysis_folder = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
+            os.makedirs(user_analysis_folder, exist_ok=True)
+            
+            # Save uploaded file in user_id_analysis_id folder
+            original_filename = uploaded_file.filename
+            filename = secure_filename(original_filename)
+            file_path = os.path.join(user_analysis_folder, filename)
             uploaded_file.save(file_path)
+            
+            # Store relative path (user_id_analysis_id/filename) for database
+            relative_file_path = os.path.join(folder_name, filename)
             
             # Get file info before processing (for saving to RDS)
             from hashlib import sha256
-            from datetime import datetime
             file_size = os.path.getsize(file_path)
             file_size_mb = round(file_size / (1024 * 1024), 3)
             
@@ -1561,9 +1594,14 @@ def clinical_analysis():
             print(f"{'='*70}")
             print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"Filename: {filename}")
+            print(f"Original Filename: {original_filename}")
             print(f"File Size: {file_size_mb} MB ({file_size:,} bytes)")
             print(f"Document Type: {form.document_type.data}")
             print(f"User: {current_user.username} ({current_user.role})")
+            print(f"User ID: {user_id}")
+            print(f"Analysis ID: {analysis_id_temp}")
+            print(f"Folder: {folder_name}")
+            print(f"File Path: {relative_file_path}")
             if form.patient_name.data:
                 print(f"Patient Name: {form.patient_name.data}")
             if form.notes.data:
@@ -1573,15 +1611,16 @@ def clinical_analysis():
             # Save file info to session for processing page
             session['clinical_analysis_file'] = {
                 'file_path': file_path,
+                'relative_path': relative_file_path,
                 'filename': filename,
+                'original_filename': original_filename,
                 'file_size_mb': file_size_mb,
                 'document_type': form.document_type.data,
                 'patient_name': form.patient_name.data or None,
-                'notes': form.notes.data or None
+                'notes': form.notes.data or None,
+                'user_id': user_id,
+                'analysis_id': analysis_id_temp  # Store the analysis_id for later use
             }
-            
-            # Generate a temporary analysis ID for progress tracking
-            analysis_id_temp = f"CA-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
             
             # Redirect to processing page instead of processing directly
             return redirect(url_for('processing_clinical_analysis', analysis_id=analysis_id_temp))
@@ -1621,7 +1660,14 @@ def process_clinical_analysis_now(analysis_id):
     notes = file_info.get('notes')
     
     # Capture user_id before starting thread (current_user not available in threads)
-    user_id = str(current_user.id) if current_user.is_authenticated else None
+    # Convert to int for database operations, but keep as string for compatibility
+    try:
+        user_id_int = int(current_user.id) if current_user.is_authenticated else None
+        user_id_str = str(current_user.id) if current_user.is_authenticated else None
+    except (ValueError, TypeError):
+        user_id_int = None
+        user_id_str = None
+    user_id = user_id_int  # Use int version for database
     username = getattr(current_user, 'username', 'unknown')
     
     # Initialize progress
@@ -1651,50 +1697,37 @@ def process_clinical_analysis_now(analysis_id):
             pipeline_end_time = datetime.now()
             pipeline_duration = (pipeline_end_time - pipeline_start_time).total_seconds()
             
-            # Clean up uploaded file
-            try:
-                os.remove(file_path)
-                print(f"\n🗑️  Cleaned up temporary file: {file_info['filename']}")
-            except Exception as e:
-                print(f"\n⚠️  Warning: Could not remove temporary file {file_info['filename']}: {e}")
+            # Keep the uploaded file for future access (don't delete)
+            # File is saved in user_id_analysis_id folder and path stored in database
+            relative_file_path = file_info.get('relative_path')
+            original_filename = file_info.get('original_filename') or file_info.get('filename')
+            print(f"\n💾 File saved for future access: {relative_file_path or file_info.get('filename')}")
+            
+            print(f"[Worker Debug] Pipeline completed. result.success={result.success}, result.analysis_id={result.analysis_id}")
+            print(f"[Worker Debug] user_id={user_id}, relative_file_path={relative_file_path}, original_filename={original_filename}")
             
             if result.success:
-                # Save result (with patient ID for database storage)
-                actual_analysis_id = save_analysis_result(result, patient_id=user_id)
-                
-                # Also save to RDS if available
+                # Save result (with patient ID, notes, and file path for database storage)
+                # This function handles ALL RDS saving (medical_record, FHIR, explanation, safety flags, processing jobs, complete analysis data)
                 try:
-                    if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
-                        patient_user_id = int(str(user_id)) if user_id else None
-                        file_hash = sha256(result.analysis_id.encode()).hexdigest()[:32]
-                        
-                        # Map form document_type to database value
-                        doc_type_map = {
-                            'medical_report': 'medical_report',
-                            'lab_results': 'lab_results',
-                            'prescription': 'prescription',
-                            'discharge_summary': 'discharge_summary',
-                            'imaging_report': 'imaging_report',
-                            'pathology': 'pathology',
-                            'consultation': 'consultation',
-                            'other': 'other'
-                        }
-                        db_doc_type = doc_type_map.get(document_type, 'other')
-                        
-                        record_id = save_medical_record_to_rds(
-                            patient_user_id=patient_user_id,
-                            file_hash=file_hash,
-                            document_type=db_doc_type,
-                            size_mb=file_info['file_size_mb'],
-                            status='Processed' if result.success else 'Failed',
-                            uploaded_at=result.timestamp if hasattr(result, 'timestamp') else datetime.now()
-                        )
-                        if record_id:
-                            print(f"[RDS] Saved medical record from clinical analysis: record_id={record_id}, type={db_doc_type}")
-                except Exception as e:
-                    print(f"[RDS] Failed to save medical record from clinical analysis: {e}")
+                    # Ensure patient_id is passed (as int or string, save_analysis_result will convert)
+                    actual_analysis_id = save_analysis_result(
+                        result, 
+                        patient_id=str(user_id) if user_id else None,  # Pass as string, will be converted to int inside
+                        notes=notes,
+                        file_path=relative_file_path,
+                        original_filename=original_filename
+                    )
+                    print(f"[Worker Debug] save_analysis_result returned: {actual_analysis_id}")
+                except Exception as save_error:
+                    # Even if saving to RDS fails, we still want to show the results
+                    print(f"⚠️ Warning: Failed to save to RDS, but analysis was successful: {save_error}")
                     import traceback
                     traceback.print_exc()
+                    actual_analysis_id = result.analysis_id
+                
+                # The duplicate save_medical_record_to_rds call below is redundant since save_analysis_result already handles it
+                # But keeping it for backward compatibility if needed
                 
                 print(f"\n{'='*70}")
                 print(f"📊 ANALYSIS RESULTS SUMMARY")
@@ -1708,20 +1741,58 @@ def process_clinical_analysis_now(analysis_id):
                 print(f"Mistral LLM Analysis: {'✓ Available' if result.mistral_analysis else '✗ Not available'}")
                 print(f"{'='*70}\n")
                 
+                # CRITICAL: Verify the analysis was saved to RDS
+                # If not, try to save it again (retry mechanism)
+                try:
+                    from rds_repository import get_clinical_analysis_result_from_rds
+                    verify_result = get_clinical_analysis_result_from_rds(
+                        analysis_id=actual_analysis_id, 
+                        patient_user_id=user_id
+                    )
+                    if not verify_result:
+                        print(f"⚠️ WARNING: Analysis {actual_analysis_id} was NOT saved to RDS! Attempting to save now...")
+                        # Retry save one more time
+                        try:
+                            retry_analysis_id = save_analysis_result(
+                                result,
+                                patient_id=str(user_id) if user_id else None,
+                                notes=notes,
+                                file_path=relative_file_path,
+                                original_filename=original_filename
+                            )
+                            print(f"✓ Retry save completed: {retry_analysis_id}")
+                        except Exception as retry_error:
+                            print(f"✗ Retry save also failed: {retry_error}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print(f"✓ Verified: Analysis {actual_analysis_id} is saved in RDS")
+                except Exception as verify_error:
+                    print(f"⚠️ Could not verify RDS save status: {verify_error}")
+                
                 # Build results URL manually (url_for doesn't work in threads without request context)
                 url = f'/clinical-analysis/results/{actual_analysis_id}'
                 print(f"✅ [PROGRESS 100%] Analysis complete! Results URL: {url}")
+                
+                PROGRESS[analysis_id] = {
+                    'pct': 100,
+                    'status': 'Analysis complete!',
+                    'done': True,
+                    'success': True,
+                    'results_url': url
+                }
             else:
                 url = '/clinical-analysis'
                 print(f"❌ [PROGRESS 100%] Analysis failed! Redirecting to upload page.")
+                
+                PROGRESS[analysis_id] = {
+                    'pct': 100,
+                    'status': f'Analysis failed: {result.error_message}',
+                    'done': True,
+                    'success': False,
+                    'results_url': url
+                }
             
-            PROGRESS[analysis_id] = {
-                'pct': 100,
-                'status': 'Analysis complete!' if result.success else f'Analysis failed: {result.error_message}',
-                'done': True,
-                'success': result.success,
-                'results_url': url
-            }
             print(f"🎯 [PROGRESS UPDATE] Progress bar reached 100% - Status: {PROGRESS[analysis_id]['status']}")
             
             # Clear session data
@@ -1733,16 +1804,45 @@ def process_clinical_analysis_now(analysis_id):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            # Build error URL manually
+            # If the analysis result exists, try to show it even if saving failed
             error_url = '/clinical-analysis'
-            print(f"💥 [PROGRESS 100%] Error occurred during processing: {str(e)}")
-            PROGRESS[analysis_id] = {
-                'pct': 100,
-                'status': f'Error: {str(e)}',
-                'done': True,
-                'success': False,
-                'results_url': error_url
-            }
+            error_message = str(e)
+            print(f"💥 [PROGRESS 100%] Error occurred during processing: {error_message}")
+            print(f"[Worker Debug] Exception in worker thread: {type(e).__name__}: {e}")
+            traceback.print_exc()
+            
+            # Check if we have a result object (even if saving failed)
+            if 'result' in locals() and result and result.success:
+                # Analysis succeeded but saving failed - still show results
+                try:
+                    actual_analysis_id = result.analysis_id
+                    url = f'/clinical-analysis/results/{actual_analysis_id}'
+                    print(f"⚠️  Showing results despite save error: {url}")
+                    PROGRESS[analysis_id] = {
+                        'pct': 100,
+                        'status': f'Analysis complete (save warning: {error_message[:50]}...)',
+                        'done': True,
+                        'success': True,
+                        'results_url': url
+                    }
+                except:
+                    # Fallback to error page
+                    PROGRESS[analysis_id] = {
+                        'pct': 100,
+                        'status': f'Error: {error_message}',
+                        'done': True,
+                        'success': False,
+                        'results_url': error_url
+                    }
+            else:
+                # Analysis failed or no result - show error page
+                PROGRESS[analysis_id] = {
+                    'pct': 100,
+                    'status': f'Error: {error_message}',
+                    'done': True,
+                    'success': False,
+                    'results_url': error_url
+                }
             print(f"🎯 [PROGRESS UPDATE] Progress bar reached 100% (with error) - Status: {PROGRESS[analysis_id]['status']}")
     
     threading.Thread(target=worker, daemon=True).start()
@@ -1776,6 +1876,53 @@ def clinical_analysis_results(analysis_id):
         flash('Analysis not found or you do not have permission to view this analysis.', 'danger')
         return redirect(url_for('clinical_analysis'))
     
+    # If file_path is missing but analysis exists, try to find the file in uploads folder
+    if not getattr(result, 'file_path', None) and analysis_id.startswith('CA-'):
+        import os
+        # Files are stored in uploads/user_id_analysis_id/filename.pdf
+        # First try with patient_user_id from current user
+        user_id_to_try = patient_user_id
+        
+        # If patient_user_id is None, try to get it from result or current_user
+        if not user_id_to_try:
+            # Try to extract from result if available
+            if hasattr(result, 'patient_id') and result.patient_id:
+                try:
+                    user_id_to_try = int(str(result.patient_id))
+                except (ValueError, TypeError):
+                    pass
+            
+            # If still None, try current_user
+            if not user_id_to_try and current_user.is_authenticated:
+                try:
+                    user_id_to_try = int(str(current_user.id))
+                except (ValueError, TypeError):
+                    pass
+        
+        if user_id_to_try:
+            pattern_folder = f"{user_id_to_try}_{analysis_id}"
+            pattern_path = os.path.join(app.config['UPLOAD_FOLDER'], pattern_folder)
+            if os.path.exists(pattern_path):
+                # Find any files in that folder
+                try:
+                    for f in os.listdir(pattern_path):
+                        if f.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx')):
+                            result.file_path = os.path.join(pattern_folder, f)
+                            if not getattr(result, 'original_filename', None):
+                                result.original_filename = f
+                            print(f"[Results Debug] Found file on disk: {result.file_path}")
+                            break
+                except Exception as e:
+                    print(f"[Results Debug] Error scanning folder {pattern_path}: {e}")
+        else:
+            print(f"[Results Debug] Could not determine user_id to search for file")
+    
+    # Debug: Log file_path information
+    print(f"[Results Debug] Analysis ID: {analysis_id}")
+    print(f"[Results Debug] result.file_path: {getattr(result, 'file_path', None)}")
+    print(f"[Results Debug] result.original_filename: {getattr(result, 'original_filename', None)}")
+    print(f"[Results Debug] Has file: {bool(getattr(result, 'file_path', None) or getattr(result, 'original_filename', None))}")
+    
     return render_template('clinical_analysis_results.html', result=result)
 
 
@@ -1786,10 +1933,34 @@ def clinical_analysis_history():
     """
     View history of clinical document analyses
     """
-    # In production, filter by current user
-    history = get_user_analysis_history(current_user.id)
-    
-    return render_template('clinical_analysis_history.html', analyses=history)
+    try:
+        # Get current user ID
+        try:
+            patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+        except (ValueError, TypeError):
+            patient_user_id = None
+        
+        if not patient_user_id:
+            flash('Unable to identify user.', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        # Get history from database with review status
+        from rds_repository import get_clinical_analysis_history_for_user
+        history = get_clinical_analysis_history_for_user(patient_user_id, limit=50)
+        
+        # Fallback to in-memory if no database history
+        if not history:
+            history = get_user_analysis_history(current_user.id)
+        
+        return render_template('clinical_analysis_history.html', analyses=history)
+    except Exception as e:
+        import traceback
+        print(f"[Analysis History] Error: {e}")
+        traceback.print_exc()
+        flash(f'Error loading analysis history: {str(e)}', 'danger')
+        # Fallback to in-memory
+        history = get_user_analysis_history(current_user.id)
+        return render_template('clinical_analysis_history.html', analyses=history)
 
 
 @app.route('/clinical-analysis/download/<analysis_id>/fhir')
@@ -1846,6 +2017,393 @@ def download_clinical_report(analysis_id):
     response.headers['Content-Disposition'] = f'attachment; filename=clinical_analysis_{analysis_id}.json'
     
     return response
+
+
+@app.route('/clinical-analysis/view/<analysis_id>/file')
+@login_required
+@role_required('doctor', 'patient')
+def view_clinical_analysis_file(analysis_id):
+    """
+    View the original uploaded file for a clinical analysis in the browser
+    """
+    try:
+        # Get user ID for verification
+        try:
+            user_id = int(current_user.id) if isinstance(current_user.id, (int, str)) else current_user.id
+        except (ValueError, TypeError):
+            try:
+                from db_auth import fetch_user as db_fetch_user
+                db_user = db_fetch_user(current_user.username)
+                if db_user and db_user.get('id'):
+                    user_id = int(db_user['id'])
+                else:
+                    user_id = current_user.id
+            except Exception:
+                user_id = current_user.id
+        
+        # Get analysis result from RDS or in-memory storage
+        result = get_analysis_result(analysis_id, patient_user_id=user_id)
+        
+        if not result:
+            flash('Analysis not found or you do not have permission to access it.', 'danger')
+            return redirect(url_for('clinical_analysis_history'))
+        
+        # Get file path from result
+        file_path = getattr(result, 'file_path', None)
+        if not file_path:
+            flash('File not found for this analysis.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        # Build full file path
+        # file_path is relative (e.g., "user_id_analysis_id/filename.pdf")
+        full_file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_path)
+        
+        # Verify file exists
+        if not os.path.exists(full_file_path):
+            flash('File not found on server.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        # Get original filename for display
+        original_filename = getattr(result, 'original_filename', None) or os.path.basename(file_path)
+        
+        # Determine MIME type based on file extension
+        file_ext = os.path.splitext(original_filename)[1].lower()
+        mime_types = {
+            '.pdf': 'application/pdf',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.txt': 'text/plain'
+        }
+        mimetype = mime_types.get(file_ext, 'application/octet-stream')
+        
+        # Return file for viewing in browser (inline)
+        from flask import send_file
+        return send_file(
+            full_file_path,
+            as_attachment=False,  # Display in browser, don't download
+            download_name=original_filename,
+            mimetype=mimetype
+        )
+        
+    except Exception as e:
+        import traceback
+        print(f"✗ Error viewing file: {e}")
+        traceback.print_exc()
+        flash(f'Error viewing file: {str(e)}', 'danger')
+        return redirect(url_for('clinical_analysis_history'))
+
+
+@app.route('/clinical-analysis/download/<analysis_id>/file')
+@login_required
+@role_required('doctor', 'patient')
+def download_clinical_analysis_file(analysis_id):
+    """
+    Download the original uploaded file for a clinical analysis
+    """
+    try:
+        # Get user ID for verification
+        try:
+            user_id = int(current_user.id) if isinstance(current_user.id, (int, str)) else current_user.id
+        except (ValueError, TypeError):
+            try:
+                from db_auth import fetch_user as db_fetch_user
+                db_user = db_fetch_user(current_user.username)
+                if db_user and db_user.get('id'):
+                    user_id = int(db_user['id'])
+                else:
+                    user_id = current_user.id
+            except Exception:
+                user_id = current_user.id
+        
+        # Get analysis result from RDS or in-memory storage
+        result = get_analysis_result(analysis_id, patient_user_id=user_id)
+        
+        if not result:
+            flash('Analysis not found or you do not have permission to access it.', 'danger')
+            return redirect(url_for('clinical_analysis_history'))
+        
+        # Get file path from result
+        file_path = getattr(result, 'file_path', None)
+        if not file_path:
+            flash('File not found for this analysis.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        # Build full file path
+        # file_path is relative (e.g., "user_id_analysis_id/filename.pdf")
+        full_file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_path)
+        
+        # Verify file exists
+        if not os.path.exists(full_file_path):
+            flash('File not found on server.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        # Get original filename for download
+        original_filename = getattr(result, 'original_filename', None) or os.path.basename(file_path)
+        
+        # Return file for download
+        from flask import send_file
+        return send_file(
+            full_file_path,
+            as_attachment=True,  # Download file
+            download_name=original_filename
+        )
+        
+    except Exception as e:
+        import traceback
+        print(f"✗ Error downloading file: {e}")
+        traceback.print_exc()
+        flash(f'Error downloading file: {str(e)}', 'danger')
+        return redirect(url_for('clinical_analysis_history'))
+
+
+@app.route('/clinical-analysis/recommend-doctors/<analysis_id>')
+@login_required
+@role_required('patient')
+def recommend_doctors_for_analysis(analysis_id):
+    """
+    Find suitable doctors for a clinical analysis using AI.
+    Uses Mistral:7b-instruct to analyze the results and recommend doctors.
+    """
+    try:
+        # Get current user ID
+        try:
+            patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+        except (ValueError, TypeError):
+            patient_user_id = None
+        
+        # Get the analysis result
+        result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
+        
+        if not result:
+            flash('Analysis not found or you do not have permission to view it.', 'danger')
+            return redirect(url_for('clinical_analysis'))
+        
+        # Get all approved doctors
+        all_doctors = get_all_approved_doctors()
+        
+        if not all_doctors:
+            flash('No approved doctors available for recommendation.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        # Prepare clinical result data for recommendation
+        clinical_data = {
+            'conditions': result.conditions or [],
+            'medications': result.medications or [],
+            'risk_level': result.risk_level or 'UNKNOWN',
+            'observations': getattr(result, 'observations', []) or [],
+            'procedures': getattr(result, 'procedures', []) or [],
+        }
+        
+        # Use AI to recommend doctors
+        print(f"[Doctor Recommendation] Finding suitable doctors for analysis {analysis_id}...")
+        recommended = recommend_doctors(clinical_data, all_doctors)
+        
+        if not recommended:
+            flash('Could not generate doctor recommendations at this time. Please try again later.', 'warning')
+            return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+        
+        print(f"[Doctor Recommendation] Recommended {len(recommended)} doctors")
+        
+        # Pass recommendations to template
+        return render_template('doctor_recommendations.html', 
+                             recommended_doctors=recommended,
+                             analysis_id=analysis_id,
+                             analysis_result=result)
+        
+    except Exception as e:
+        import traceback
+        print(f"[Doctor Recommendation] Error: {e}")
+        traceback.print_exc()
+        flash(f'Error finding doctor recommendations: {str(e)}', 'danger')
+        return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
+
+
+@app.route('/clinical-analysis/request-review/<analysis_id>/<int:doctor_user_id>', methods=['POST'])
+@login_required
+@role_required('patient')
+def request_doctor_review(analysis_id, doctor_user_id):
+    """
+    Request a doctor to review a clinical analysis.
+    Creates a pending review entry in the database.
+    """
+    try:
+        # Get current user ID
+        try:
+            patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+        except (ValueError, TypeError):
+            patient_user_id = None
+        
+        if not patient_user_id:
+            flash('Unable to identify patient user.', 'danger')
+            return redirect(url_for('recommend_doctors_for_analysis', analysis_id=analysis_id))
+        
+        # Get the analysis result to find medical_record_id
+        result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
+        if not result:
+            flash('Analysis not found or you do not have permission to view it.', 'danger')
+            return redirect(url_for('recommend_doctors_for_analysis', analysis_id=analysis_id))
+        
+        # Get medical_record_id from database using analysis_id (file_hash)
+        from rds_repository import _conn
+        from psycopg2.extras import RealDictCursor
+        import os
+        
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id FROM medical_records 
+                WHERE file_hash = %s AND patient_id = %s
+                LIMIT 1
+            """, (analysis_id, patient_user_id))
+            mr_row = cur.fetchone()
+            
+            if not mr_row:
+                flash('Medical record not found in database.', 'danger')
+                return redirect(url_for('recommend_doctors_for_analysis', analysis_id=analysis_id))
+            
+            medical_record_id = mr_row['id']
+        
+        # Get optional notes from form
+        notes = request.form.get('notes', '').strip() or None
+        
+        # Save review request to database
+        approval_id = save_review_request(
+            patient_user_id=patient_user_id,
+            doctor_user_id=doctor_user_id,
+            medical_record_id=medical_record_id,
+            analysis_id=analysis_id,
+            notes=notes
+        )
+        
+        if approval_id:
+            flash(f'Review request sent successfully to the doctor. You will be notified when the review is completed.', 'success')
+        else:
+            flash('Review request may have already been sent. Please check your analysis history.', 'info')
+        
+        return redirect(url_for('recommend_doctors_for_analysis', analysis_id=analysis_id))
+        
+    except Exception as e:
+        import traceback
+        print(f"[Request Review] Error: {e}")
+        traceback.print_exc()
+        flash(f'Error sending review request: {str(e)}', 'danger')
+        return redirect(url_for('recommend_doctors_for_analysis', analysis_id=analysis_id))
+
+
+@app.route('/doctor/profile/<int:doctor_user_id>')
+@login_required
+@role_required('patient', 'doctor', 'admin')
+def view_doctor_profile(doctor_user_id):
+    """
+    View complete doctor profile (accessible by patients, doctors, and admins).
+    """
+    try:
+        print(f"[View Doctor Profile] Attempting to fetch profile for doctor_user_id={doctor_user_id}")
+        profile = get_doctor_complete_profile(doctor_user_id)
+        
+        if not profile:
+            print(f"[View Doctor Profile] Profile not found for doctor_user_id={doctor_user_id}")
+            flash('Doctor profile not found. The doctor may not be registered in the system.', 'danger')
+            # Try to redirect back to recommendations if coming from there
+            referrer = request.referrer
+            if referrer and 'recommend-doctors' in referrer:
+                return redirect(referrer)
+            elif current_user.role == 'patient':
+                return redirect(url_for('clinical_analysis_history'))
+            elif current_user.role == 'doctor':
+                return redirect(url_for('doctor_dashboard'))
+            else:
+                return redirect(url_for('admin_dashboard'))
+        
+        print(f"[View Doctor Profile] Successfully loaded profile for doctor_user_id={doctor_user_id}: {profile.get('name') or profile.get('username')}")
+        
+        # Check if doctor is approved (patients can only view approved doctors)
+        if current_user.role == 'patient' and profile.get('approval_status') != 'Approved':
+            flash('This doctor profile is not available for viewing. Only approved doctors are visible to patients.', 'warning')
+            return redirect(url_for('clinical_analysis_history'))
+        
+        return render_template('patient_doctor_profile.html', doctor=profile)
+        
+    except Exception as e:
+        import traceback
+        print(f"[View Doctor Profile] Error: {e}")
+        traceback.print_exc()
+        flash(f'Error loading doctor profile: {str(e)}', 'danger')
+        if current_user.role == 'patient':
+            return redirect(url_for('clinical_analysis_history'))
+        elif current_user.role == 'doctor':
+            return redirect(url_for('doctor_dashboard'))
+        else:
+            return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/clinical-analysis/delete/<analysis_id>', methods=['POST'])
+@login_required
+@role_required('doctor', 'patient')
+def delete_clinical_analysis(analysis_id):
+    """
+    Delete a clinical analysis from RDS and in-memory storage
+    """
+    try:
+        # Get user ID for ownership verification
+        try:
+            user_id = int(current_user.id) if isinstance(current_user.id, (int, str)) else current_user.id
+        except (ValueError, TypeError):
+            try:
+                from db_auth import fetch_user as db_fetch_user
+                db_user = db_fetch_user(current_user.username)
+                if db_user and db_user.get('id'):
+                    user_id = int(db_user['id'])
+                else:
+                    user_id = current_user.id
+            except Exception:
+                user_id = current_user.id
+        
+        # Get analysis result to verify ownership
+        result = get_analysis_result(analysis_id, patient_user_id=user_id)
+        
+        if not result:
+            flash('Analysis not found or you do not have permission to delete it.', 'danger')
+            return redirect(url_for('clinical_analysis_history'))
+        
+        deleted_from_rds = False
+        deleted_from_memory = False
+        
+        # Delete from RDS
+        try:
+            if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+                from rds_repository import delete_clinical_analysis_from_rds
+                if delete_clinical_analysis_from_rds(analysis_id=analysis_id, patient_user_id=user_id):
+                    deleted_from_rds = True
+                    print(f"[DELETE] Successfully deleted analysis {analysis_id} from RDS")
+        except Exception as e:
+            print(f"[DELETE] Error deleting from RDS: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Delete from in-memory storage
+        try:
+            from clinical_analysis_processor import analysis_results_storage
+            if analysis_id in analysis_results_storage:
+                del analysis_results_storage[analysis_id]
+                deleted_from_memory = True
+                print(f"[DELETE] Successfully deleted analysis {analysis_id} from in-memory storage")
+        except Exception as e:
+            print(f"[DELETE] Error deleting from in-memory storage: {e}")
+        
+        if deleted_from_rds or deleted_from_memory:
+            flash('Analysis deleted successfully.', 'success')
+        else:
+            flash('Analysis not found or could not be deleted.', 'warning')
+        
+    except Exception as e:
+        import traceback
+        print(f"✗ Error deleting analysis: {e}")
+        traceback.print_exc()
+        flash(f'Error deleting analysis: {str(e)}', 'danger')
+    
+    return redirect(url_for('clinical_analysis_history'))
 
 
 # ================================
@@ -1968,21 +2526,94 @@ def pending_ai_reviews():
     """
     Queue of AI outputs pending doctor review
     UC-05: Main entry point for review workflow
+    Filters by logged-in doctor's ID
     """
-    pending_ids = get_pending_reviews()
-    
-    # Load analysis results for pending reviews
-    pending_analyses = []
-    for analysis_id in pending_ids:
-        result = get_analysis_result(analysis_id)
-        if result:
-            # Create review package
-            review_package = create_review_package(result)
-            pending_analyses.append(review_package)
-    
-    return render_template('pending_ai_reviews.html',
-                         pending_analyses=pending_analyses,
-                         count=len(pending_analyses))
+    try:
+        # Get current doctor user ID
+        try:
+            doctor_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+        except (ValueError, TypeError):
+            doctor_user_id = None
+        
+        if not doctor_user_id:
+            flash('Unable to identify doctor user.', 'danger')
+            return redirect(url_for('doctor_dashboard'))
+        
+        # Get pending reviews for this specific doctor from database
+        pending_reviews_db = get_pending_reviews_for_doctor(doctor_user_id)
+        
+        # Load analysis results for pending reviews
+        pending_analyses = []
+        for review in pending_reviews_db:
+            analysis_id = review.get('analysis_id')
+            patient_user_id = review.get('patient_id')
+            
+            if analysis_id:
+                result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
+                if result:
+                    # Create review package
+                    review_package = create_review_package(result)
+                    # Convert dataclass to dict and add database review info
+                    try:
+                        from dataclasses import asdict
+                        review_dict = asdict(review_package)
+                    except Exception:
+                        # Fallback: manually convert if asdict fails
+                        review_dict = {
+                            'analysis_id': review_package.analysis_id,
+                            'patient_id': review_package.patient_id,
+                            'document_type': review_package.document_type,
+                            'processed_at': review_package.processed_at,
+                            'fhir_data': review_package.fhir_data,
+                            'summary_md': review_package.summary_md,
+                            'risks_md': review_package.risks_md,
+                            'safety_flags': [{'flag_id': f.flag_id, 'severity': f.severity.value if hasattr(f.severity, 'value') else str(f.severity), 'description': f.description} for f in review_package.safety_flags] if review_package.safety_flags else [],
+                            'overall_confidence': review_package.overall_confidence,
+                            'low_confidence_areas': review_package.low_confidence_areas,
+                            'has_critical_flags': review_package.has_critical_flags,
+                            'requires_mandatory_override': review_package.requires_mandatory_override,
+                        }
+                    review_dict['review_info'] = review
+                    pending_analyses.append(review_dict)
+        
+        # Fallback to in-memory pending reviews if no DB reviews found (for backward compatibility)
+        if not pending_analyses:
+            pending_ids = get_pending_reviews()
+            for analysis_id in pending_ids:
+                result = get_analysis_result(analysis_id)
+                if result:
+                    review_package = create_review_package(result)
+                    # Convert dataclass to dict for consistency
+                    try:
+                        from dataclasses import asdict
+                        review_dict = asdict(review_package)
+                    except Exception:
+                        # Fallback: manually convert if asdict fails
+                        review_dict = {
+                            'analysis_id': review_package.analysis_id,
+                            'patient_id': review_package.patient_id,
+                            'document_type': review_package.document_type,
+                            'processed_at': review_package.processed_at,
+                            'fhir_data': review_package.fhir_data,
+                            'summary_md': review_package.summary_md,
+                            'risks_md': review_package.risks_md,
+                            'safety_flags': [{'flag_id': f.flag_id, 'severity': f.severity.value if hasattr(f.severity, 'value') else str(f.severity), 'description': f.description} for f in review_package.safety_flags] if review_package.safety_flags else [],
+                            'overall_confidence': review_package.overall_confidence,
+                            'low_confidence_areas': review_package.low_confidence_areas,
+                            'has_critical_flags': review_package.has_critical_flags,
+                            'requires_mandatory_override': review_package.requires_mandatory_override,
+                        }
+                    pending_analyses.append(review_dict)
+        
+        return render_template('pending_ai_reviews.html',
+                             pending_analyses=pending_analyses,
+                             count=len(pending_analyses))
+    except Exception as e:
+        import traceback
+        print(f"[Pending Reviews] Error: {e}")
+        traceback.print_exc()
+        flash(f'Error loading pending reviews: {str(e)}', 'danger')
+        return redirect(url_for('doctor_dashboard'))
 
 
 @app.route('/review/<analysis_id>', methods=['GET', 'POST'])
@@ -2002,82 +2633,129 @@ def review_ai_output(analysis_id):
     # Create review package
     review_package = create_review_package(result)
     
+    # Get approval_id from database if this is a review request
+    approval_id = None
+    try:
+        doctor_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+        if doctor_user_id:
+            from rds_repository import _conn
+            from psycopg2.extras import RealDictCursor
+            
+            with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT aa.id AS approval_id
+                    FROM medical_records mr
+                    JOIN ai_approvals aa ON aa.medical_record_id = mr.id 
+                    WHERE mr.file_hash = %s
+                    AND aa.doctor_id = %s
+                    AND aa.signed_at IS NULL
+                    LIMIT 1
+                """, (analysis_id, doctor_user_id))
+                
+                approval_row = cur.fetchone()
+                if approval_row:
+                    approval_id = approval_row.get('approval_id')
+    except Exception as e:
+        print(f"[Review] Error getting approval_id: {e}")
+    
     if request.method == 'POST':
-        from uuid import uuid4
+        # Simple: just get the status and update database
+        status_value = request.form.get('status', '').lower()
         
-        # Create approval decision
-        decision = ApprovalDecision(
-            decision_id=str(uuid4()),
-            analysis_id=analysis_id,
-            reviewer_id=current_user.id,
-            reviewer_name=current_user.get_display_name()
-        )
+        # Map status to database enum values
+        status_map = {
+            'approved': 'Approved',
+            'rejected': 'Rejected',
+            'needs_revision': 'NeedsChanges',
+            'escalated': 'NeedsChanges'  # Escalate also maps to NeedsChanges
+        }
         
-        # Parse form data
-        decision.status = ApprovalStatus(request.form.get('status', 'pending'))
-        decision.notes = request.form.get('notes', '')
-        decision.reviewed_fhir = request.form.get('reviewed_fhir') == 'on'
-        decision.reviewed_summary = request.form.get('reviewed_summary') == 'on'
-        decision.reviewed_safety = request.form.get('reviewed_safety') == 'on'
+        db_decision = status_map.get(status_value, 'NeedsChanges')
+        notes = request.form.get('notes', '')
         
-        # Handle safety overrides
-        override_flags = request.form.getlist('override_flags')
-        for flag_id in override_flags:
-            justification = request.form.get(f'justification_{flag_id}', '')
-            if justification:
-                decision.safety_overrides.append(flag_id)
-                # In production, save justification to SafetyFlag object
+        print(f"[Review Submit] Status: '{status_value}' -> DB decision: '{db_decision}'")
         
-        # Handle modifications
-        if request.form.get('has_modifications') == 'on':
-            modification_text = request.form.get('modification_text', '')
-            if modification_text:
-                decision.modifications.append({
-                    'timestamp': datetime.now().isoformat(),
-                    'text': modification_text
-                })
-        
-        # Validate approval
-        is_valid, error_msg = validate_approval(review_package, decision)
-        
-        if not is_valid:
-            flash(f'Approval validation failed: {error_msg}', 'danger')
-            return render_template('review_ai_output.html',
-                                 review=review_package,
-                                 analysis=result)
-        
-        # Generate digital signature for approval/rejection
-        if decision.status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
-            decision.digital_signature = generate_digital_signature(current_user.id, decision)
-            decision.signature_timestamp = datetime.now()
-        
-        # Check if escalation is needed
-        if review_package.overall_confidence < 0.7 and decision.status == ApprovalStatus.APPROVED:
-            if not decision.specialist_reviews:
-                # Auto-escalate low confidence cases
-                decision.status = ApprovalStatus.ESCALATED
-                decision.requires_specialist = True
-                flash('Case automatically escalated for specialist review due to low AI confidence.', 'warning')
-        
-        # Save decision
-        save_approval_decision(decision)
-        
-        # Flash message
-        if decision.status == ApprovalStatus.APPROVED:
-            flash('✓ AI output approved. Patient can now view this analysis.', 'success')
-            # In production, trigger notification to patient
-        elif decision.status == ApprovalStatus.REJECTED:
-            flash('AI output rejected. Analysis will not be released to patient.', 'info')
-        elif decision.status == ApprovalStatus.ESCALATED:
-            flash('Case escalated for specialist review.', 'warning')
-        else:
-            flash(f'Review saved with status: {decision.status.value}', 'info')
+        # Update database
+        try:
+            from rds_repository import _conn, update_approval_decision_in_rds
+            from psycopg2.extras import RealDictCursor
+            
+            with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Find the approval_id from analysis_id
+                cur.execute("""
+                    SELECT aa.id AS approval_id
+                    FROM medical_records mr
+                    JOIN ai_approvals aa ON aa.medical_record_id = mr.id 
+                    WHERE mr.file_hash = %s
+                    AND aa.doctor_id = %s
+                    AND aa.signed_at IS NULL
+                    LIMIT 1
+                """, (analysis_id, int(str(current_user.id))))
+                
+                approval_row = cur.fetchone()
+                if approval_row and approval_row.get('approval_id'):
+                    approval_id = approval_row['approval_id']
+                    
+                    # Update the approval in database
+                    success = update_approval_decision_in_rds(
+                        approval_id=approval_id,
+                        doctor_user_id=int(str(current_user.id)),
+                        decision=db_decision,
+                        notes=notes,
+                        signed_at=datetime.now()
+                    )
+                    
+                    if success:
+                        print(f"[Review Submit] ✅ Successfully updated approval {approval_id} in database with status: {db_decision}")
+                        
+                        # Flash message
+                        if status_value == 'approved':
+                            flash('✓ Review approved. Status updated in database.', 'success')
+                        elif status_value == 'rejected':
+                            flash('Review rejected. Status updated in database.', 'info')
+                        elif status_value == 'escalated':
+                            flash('Review escalated. Status updated in database.', 'warning')
+                        else:
+                            flash('Review status updated in database.', 'info')
+                    else:
+                        print(f"[Review Submit] ⚠️ Failed to update approval in database")
+                        flash('Failed to update status in database.', 'danger')
+                else:
+                    print(f"[Review Submit] ⚠️ No pending approval found for analysis {analysis_id}")
+                    flash('No pending approval found for this analysis.', 'warning')
+                    
+        except Exception as e:
+            import traceback
+            print(f"[Review Submit] ❌ Error updating database: {e}")
+            traceback.print_exc()
+            flash(f'Error updating status: {str(e)}', 'danger')
         
         return redirect(url_for('pending_ai_reviews'))
     
+    # Convert review_package to dict for template
+    try:
+        from dataclasses import asdict
+        review_dict = asdict(review_package)
+    except Exception:
+        review_dict = {
+            'analysis_id': review_package.analysis_id,
+            'patient_id': review_package.patient_id,
+            'document_type': review_package.document_type,
+            'processed_at': review_package.processed_at,
+            'fhir_data': review_package.fhir_data,
+            'summary_md': review_package.summary_md,
+            'risks_md': review_package.risks_md,
+            'safety_flags': review_package.safety_flags,
+            'overall_confidence': review_package.overall_confidence,
+            'low_confidence_areas': review_package.low_confidence_areas,
+            'has_critical_flags': review_package.has_critical_flags,
+            'requires_mandatory_override': review_package.requires_mandatory_override,
+        }
+    
     return render_template('review_ai_output.html',
-                         review=review_package,
-                         analysis=result)
+                         review=review_dict,
+                         analysis=result,
+                         approval_id=approval_id)
 
 
 @app.route('/review/history')
@@ -2085,14 +2763,63 @@ def review_ai_output(analysis_id):
 @role_required('doctor', 'admin')
 def review_history():
     """
-    View history of approval decisions
+    View history of approval decisions from AWS database
     """
-    from approval_models import approval_decisions_storage
+    from rds_repository import get_review_history_from_rds
     
-    # Get all decisions (in production, filter by user or date range)
-    decisions = list(approval_decisions_storage.values())
-    decisions.sort(key=lambda d: d.timestamp, reverse=True)
+    # For doctors, only show their own reviews. For admins, show all reviews.
+    doctor_user_id = None
+    if current_user.role == 'doctor':
+        try:
+            doctor_user_id = int(str(current_user.id))
+        except (ValueError, TypeError):
+            # If it's a string ID, try to find in database
+            try:
+                from db_auth import fetch_user as db_fetch_user
+                db_user = db_fetch_user(current_user.username)
+                if db_user:
+                    doctor_user_id = db_user['id']
+            except Exception:
+                pass
     
+    # Fetch from AWS database
+    reviews = get_review_history_from_rds(doctor_user_id=doctor_user_id)
+    
+    # Convert to format expected by template (similar to ApprovalDecision dataclass)
+    # The template expects objects with: status.value, decision_id, analysis_id, reviewer_name, timestamp, etc.
+    decisions = []
+    for review in reviews:
+        # Map database decision to ApprovalStatus-like structure
+        decision_value = review['decision'].lower()
+        if decision_value == 'approved':
+            status_value = 'approved'
+        elif decision_value == 'rejected':
+            status_value = 'rejected'
+        elif decision_value == 'needschanges':
+            status_value = 'needs_revision'
+        else:
+            status_value = 'needs_revision'
+        
+        # Create a simple object that mimics ApprovalDecision for the template
+        decision_obj = type('Decision', (), {
+            'decision_id': f"DEC-{review['approval_id']}",
+            'analysis_id': review['analysis_id'],
+            'reviewer_name': review['doctor_name'],
+            'reviewer_id': review['doctor_id'],
+            'status': type('Status', (), {'value': status_value})(),
+            'timestamp': review['signed_at'] or review['created_at'],
+            'notes': review['notes'] or '',
+            'safety_overrides': [],  # Not stored in DB yet
+            'released_to_patient': decision_value == 'approved',
+            'medical_record_id': review['medical_record_id'],
+            'approval_id': review['approval_id']
+        })()
+        decisions.append(decision_obj)
+    
+    # Sort by timestamp (newest first)
+    decisions.sort(key=lambda d: d.timestamp or datetime.min, reverse=True)
+    
+    print(f"[Review History] Displaying {len(decisions)} reviews")
     return render_template('review_history.html', decisions=decisions)
 
 

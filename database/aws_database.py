@@ -159,6 +159,9 @@ try:
         
         print("   • Ensuring medical_records document_type column…")
         ensure_col('medical_records','document_type','TEXT')
+        print("   • Ensuring medical_records file_path and original_filename columns…")
+        ensure_col('medical_records','file_path','TEXT')
+        ensure_col('medical_records','original_filename','TEXT')
         # Set default approval_status for existing doctors
         connection.set_session(autocommit=True)
         try:

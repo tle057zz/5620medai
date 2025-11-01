@@ -717,7 +717,8 @@ def get_patient_recent_medical_records(patient_user_id: int, limit: int = 10) ->
 
 def save_medical_record_to_rds(patient_user_id: int, file_hash: str, document_type: str = None,
                                pages: int = None, size_mb: float = None,
-                               status: str = 'Uploaded', uploaded_at: datetime = None) -> Optional[int]:
+                               status: str = 'Uploaded', uploaded_at: datetime = None,
+                               file_path: str = None, original_filename: str = None) -> Optional[int]:
     """Save a medical record to RDS.
     Ensures patient record exists before saving (required by foreign key constraint).
     Returns the medical_record_id if successful, None otherwise.
@@ -737,17 +738,57 @@ def save_medical_record_to_rds(patient_user_id: int, file_hash: str, document_ty
                 ON CONFLICT (user_id) DO NOTHING
             """, (patient_user_id,))
             
-            # Now insert medical record
+            # Check if file_path column exists in medical_records
             cur.execute("""
-                INSERT INTO medical_records(file_hash, patient_id, document_type, pages, size_mb, 
-                                          uploaded_at, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s::medical_record_status)
-                ON CONFLICT (file_hash) DO UPDATE SET
-                    document_type = COALESCE(EXCLUDED.document_type, medical_records.document_type),
-                    status = EXCLUDED.status,
-                    uploaded_at = EXCLUDED.uploaded_at
-                RETURNING id
-            """, (file_hash, patient_user_id, document_type, pages, size_mb, uploaded_at, status))
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'medical_records' AND column_name = 'file_path'
+                ) AS has_file_path
+            """)
+            result = cur.fetchone()
+            has_file_path_col = result[0] if result else False
+            print(f"[RDS Save Debug] Checking columns: has_file_path_col={has_file_path_col}")
+            
+            if not has_file_path_col:
+                print(f"[RDS Save Debug] ⚠️ WARNING: file_path column does not exist. Attempting to add columns...")
+                try:
+                    # Try to add the columns if they don't exist
+                    cur.execute("ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS file_path TEXT")
+                    cur.execute("ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS original_filename TEXT")
+                    conn.commit()
+                    print(f"[RDS Save Debug] ✅ Successfully added file_path and original_filename columns")
+                    has_file_path_col = True  # Update flag after adding columns
+                except Exception as alter_error:
+                    print(f"[RDS Save Debug] ❌ Failed to add columns: {alter_error}")
+                    conn.rollback()
+            
+            # Build INSERT query based on whether columns exist
+            if has_file_path_col:
+                # Insert with file_path and original_filename columns
+                cur.execute("""
+                    INSERT INTO medical_records(file_hash, patient_id, document_type, pages, size_mb, 
+                                              file_path, original_filename, uploaded_at, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::medical_record_status)
+                    ON CONFLICT (file_hash) DO UPDATE SET
+                        document_type = COALESCE(EXCLUDED.document_type, medical_records.document_type),
+                        file_path = EXCLUDED.file_path,
+                        original_filename = EXCLUDED.original_filename,
+                        status = EXCLUDED.status,
+                        uploaded_at = EXCLUDED.uploaded_at
+                    RETURNING id
+                """, (file_hash, patient_user_id, document_type, pages, size_mb, file_path, original_filename, uploaded_at, status))
+            else:
+                # Fallback: insert without file_path columns (for databases that haven't migrated yet)
+                cur.execute("""
+                    INSERT INTO medical_records(file_hash, patient_id, document_type, pages, size_mb, 
+                                              uploaded_at, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::medical_record_status)
+                    ON CONFLICT (file_hash) DO UPDATE SET
+                        document_type = COALESCE(EXCLUDED.document_type, medical_records.document_type),
+                        status = EXCLUDED.status,
+                        uploaded_at = EXCLUDED.uploaded_at
+                    RETURNING id
+                """, (file_hash, patient_user_id, document_type, pages, size_mb, uploaded_at, status))
             
             result = cur.fetchone()
             record_id = result[0] if result else None
@@ -755,6 +796,17 @@ def save_medical_record_to_rds(patient_user_id: int, file_hash: str, document_ty
             
             if record_id:
                 print(f"[RDS] Saved medical record: id={record_id}, patient={patient_user_id}, type={document_type}, status={status}")
+                print(f"[RDS Save Debug] has_file_path_col={has_file_path_col}, file_path={file_path}, original_filename={original_filename}")
+                if has_file_path_col:
+                    # Verify the values were actually saved
+                    cur.execute("""
+                        SELECT file_path, original_filename 
+                        FROM medical_records 
+                        WHERE id = %s
+                    """, (record_id,))
+                    verify_row = cur.fetchone()
+                    if verify_row:
+                        print(f"[RDS Save Debug] Verified saved: file_path={verify_row[0]}, original_filename={verify_row[1]}")
             return record_id
         except Exception as e:
             conn.rollback()
@@ -945,37 +997,49 @@ def get_clinical_analysis_history_for_user(patient_user_id: int, limit: int = 20
     """Get clinical analysis history for a patient from RDS.
     Returns list of analysis summaries with analysis_id, patient_name, document_type, timestamp, etc.
     """
-    with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("""
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
             SELECT 
                 mr.id AS medical_record_id,
                 mr.file_hash,
                 mr.document_type,
                 mr.uploaded_at AS timestamp,
                 mr.status,
-                -- Extract analysis_id from file_hash or use a pattern
-                CONCAT('CA-', TO_CHAR(mr.uploaded_at, 'YYYYMMDD-HH24MISS')) AS analysis_id,
+                -- Extract analysis_id: use file_hash if it starts with 'CA-', otherwise construct from timestamp
+                CASE 
+                    WHEN mr.file_hash LIKE 'CA-%%' THEN mr.file_hash
+                    ELSE CONCAT('CA-', TO_CHAR(mr.uploaded_at, 'YYYYMMDD-HH24MISS'))
+                END AS analysis_id,
                 -- Get patient name from users table (mr.patient_id = users.id via patients table)
                 COALESCE(u.name, u.username, 'Unknown Patient') AS patient_name,
+                -- Review status information
+                aa.id AS review_approval_id,
+                aa.decision AS review_decision,
+                aa.created_at AS review_requested_at,
+                aa.signed_at AS review_completed_at,
+                doc_user.name AS review_doctor_name,
+                doc_user.id AS review_doctor_id,
                 -- Count conditions from FHIR bundle
                 (SELECT COUNT(*)::int
                  FROM fhir_bundles fb
                  WHERE fb.medical_record_id = mr.id
-                 AND fb.json::text LIKE '%"resourceType": "Condition"%') AS conditions_count,
+                 AND fb.json::text LIKE '%%"resourceType": "Condition"%%') AS conditions_count,
                 -- Count medications from FHIR bundle
                 (SELECT COUNT(*)::int
                  FROM fhir_bundles fb
                  WHERE fb.medical_record_id = mr.id
-                 AND (fb.json::text LIKE '%"resourceType": "MedicationStatement"%'
-                      OR fb.json::text LIKE '%"resourceType": "MedicationRequest"%')) AS medications_count,
+                 AND (fb.json::text LIKE '%%"resourceType": "MedicationStatement"%%'
+                      OR fb.json::text LIKE '%%"resourceType": "MedicationRequest"%%')) AS medications_count,
                 -- Get risk level from safety flags or explanations
+                -- Note: safety_severity enum values are 'Low', 'Medium', 'High' (not 'Critical' or 'Moderate')
                 CASE 
-                    WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id AND sf.severity = 'Critical')
-                    THEN 'critical'
                     WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id AND sf.severity = 'High')
                     THEN 'high'
-                    WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id AND sf.severity = 'Moderate')
+                    WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id AND sf.severity = 'Medium')
                     THEN 'medium'
+                    WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id AND sf.severity = 'Low')
+                    THEN 'low'
                     WHEN EXISTS (SELECT 1 FROM safety_flags sf WHERE sf.medical_record_id = mr.id)
                     THEN 'medium'
                     WHEN EXISTS (SELECT 1 FROM explanations e WHERE e.medical_record_id = mr.id AND e.low_confidence = false)
@@ -987,33 +1051,127 @@ def get_clinical_analysis_history_for_user(patient_user_id: int, limit: int = 20
             FROM medical_records mr
             LEFT JOIN patients p ON p.user_id = mr.patient_id
             LEFT JOIN users u ON u.id = COALESCE(p.user_id, mr.patient_id)
+            LEFT JOIN LATERAL (
+                SELECT id, decision, created_at, signed_at, doctor_id
+                FROM ai_approvals 
+                WHERE medical_record_id = mr.id 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ) aa ON true
+            LEFT JOIN doctors d ON d.user_id = aa.doctor_id
+            LEFT JOIN users doc_user ON doc_user.id = d.user_id
             WHERE mr.patient_id = %s
             AND mr.status IN ('Processed', 'Explained', 'Checked')
             ORDER BY mr.uploaded_at DESC
             LIMIT %s
-        """, (patient_user_id, limit))
-        
-        rows = cur.fetchall()
-        
-        # Convert to list of dicts compatible with ClinicalAnalysisResult-like objects
-        history = []
-        for row in rows:
-            history.append({
-                'medical_record_id': row['medical_record_id'],
-                'analysis_id': row['analysis_id'],
-                'patient_name': row['patient_name'],
-                'document_type': row['document_type'],
-                'timestamp': row['timestamp'],
-                'status': row['status'],
-                'conditions': [] if row['conditions_count'] == 0 else ['Condition'] * row['conditions_count'],  # Placeholder
-                'medications': [] if row['medications_count'] == 0 else ['Medication'] * row['medications_count'],  # Placeholder
-                'risk_level': row['risk_level'],
-                'red_flags': [] if row['red_flags_count'] == 0 else ['Red flag'] * row['red_flags_count'],  # Placeholder
-                'success': row['status'] in ('Processed', 'Explained', 'Checked'),
-                'file_hash': row['file_hash']
-            })
-        
-        return history
+            """, (patient_user_id, limit))
+            
+            rows = cur.fetchall()
+            print(f"[RDS History] Fetched {len(rows)} rows for patient {patient_user_id}")
+            
+            # Convert to list of dicts compatible with ClinicalAnalysisResult-like objects
+            history = []
+            for row in rows:
+                try:
+                    # RealDictCursor returns dict-like objects, but be defensive
+                    if not isinstance(row, dict):
+                        # If somehow not a dict, skip this row
+                        print(f"  ⚠ Unexpected row type: {type(row)}, skipping...")
+                        continue
+                    
+                    # Use .get() method for safe access
+                    medical_record_id = row.get('medical_record_id')
+                    analysis_id = row.get('analysis_id') or ''
+                    patient_name = row.get('patient_name') or 'Unknown Patient'
+                    document_type = row.get('document_type') or 'medical_report'
+                    timestamp = row.get('timestamp')
+                    status = row.get('status') or 'Unknown'
+                    conditions_count = row.get('conditions_count') or 0
+                    medications_count = row.get('medications_count') or 0
+                    risk_level = row.get('risk_level') or 'unknown'
+                    red_flags_count = row.get('red_flags_count') or 0
+                    file_hash = row.get('file_hash') or ''
+                    file_path = row.get('file_path')
+                    original_filename = row.get('original_filename')
+                    
+                    # Review status information
+                    review_approval_id = row.get('review_approval_id')
+                    review_decision = row.get('review_decision')
+                    review_requested_at = row.get('review_requested_at')
+                    review_completed_at = row.get('review_completed_at')
+                    review_doctor_name = row.get('review_doctor_name')
+                    review_doctor_id = row.get('review_doctor_id')
+                    
+                    # Determine review status
+                    review_status = 'not_requested'
+                    if review_approval_id:
+                        if review_completed_at:
+                            review_status = 'completed'
+                        else:
+                            review_status = 'pending'
+                    
+                    # If file_path is missing but we have an analysis_id, try to find the file
+                    if not file_path and analysis_id and analysis_id.startswith('CA-'):
+                        # Files are stored in uploads/user_id_analysis_id/filename.pdf
+                        # Get upload folder path (assuming web_app/uploads structure)
+                        # rds_repository.py is in web_app/, so uploads is also in web_app/
+                        try:
+                            current_file_dir = os.path.dirname(os.path.abspath(__file__))
+                            upload_folder = os.path.join(current_file_dir, 'uploads')
+                            
+                            # Try to find files in folders matching the pattern
+                            if patient_user_id:
+                                pattern_folder = f"{patient_user_id}_{analysis_id}"
+                                pattern_path = os.path.join(upload_folder, pattern_folder)
+                                if os.path.exists(pattern_path):
+                                    # Find any PDF or image files in that folder
+                                    for f in os.listdir(pattern_path):
+                                        if f.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx')):
+                                            file_path = os.path.join(pattern_folder, f)
+                                            if not original_filename:
+                                                original_filename = f
+                                            print(f"[History Debug] Found file on disk for {analysis_id}: {file_path}")
+                                            break
+                        except Exception as e:
+                            print(f"[History Debug] Error finding file for {analysis_id}: {e}")
+                    
+                    history.append({
+                        'medical_record_id': medical_record_id,
+                        'analysis_id': analysis_id,
+                        'patient_name': patient_name,
+                        'document_type': document_type,
+                        'timestamp': timestamp,
+                        'status': status,
+                        'conditions': [] if conditions_count == 0 else ['Condition'] * conditions_count,  # Placeholder
+                        'medications': [] if medications_count == 0 else ['Medication'] * medications_count,  # Placeholder
+                        'risk_level': risk_level,
+                        'red_flags': [] if red_flags_count == 0 else ['Red flag'] * red_flags_count,  # Placeholder
+                        'success': status in ('Processed', 'Explained', 'Checked'),
+                        'file_hash': file_hash,
+                        'file_path': file_path,
+                        'original_filename': original_filename,
+                        # Review status
+                        'review_status': review_status,
+                        'review_decision': review_decision,
+                        'review_requested_at': review_requested_at,
+                        'review_completed_at': review_completed_at,
+                        'review_doctor_name': review_doctor_name,
+                        'review_doctor_id': review_doctor_id
+                    })
+                except Exception as e:
+                    # Skip rows that can't be processed
+                    print(f"⚠ Error processing history row: {e}")
+                    print(f"   Row data: {row}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+            
+            return history
+    except Exception as e:
+        print(f"⚠ Error executing history query: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_record_id: int = None, 
@@ -1035,25 +1193,42 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
             where_clause_parts.append("mr.file_hash = %s")
             params.append(file_hash)
         elif analysis_id:
-            # Try to parse analysis_id (format: CA-YYYYMMDD-HHMMSS)
-            # Extract timestamp and match to uploaded_at
-            if analysis_id.startswith('CA-') and len(analysis_id) == 17:
-                try:
-                    date_part = analysis_id[3:11]  # YYYYMMDD
-                    time_part = analysis_id[12:16]  # HHMMSS
-                    # Convert to timestamp
-                    import re
-                    year = date_part[:4]
-                    month = date_part[4:6]
-                    day = date_part[6:8]
-                    hour = time_part[:2]
-                    minute = time_part[2:4]
-                    sec = time_part[4:6]
-                    timestamp_str = f"{year}-{month}-{day} {hour}:{minute}:{sec}"
-                    where_clause_parts.append("mr.uploaded_at::timestamp = %s::timestamp")
-                    params.append(timestamp_str)
-                except Exception:
-                    return None
+            # First try to match file_hash directly if analysis_id is stored there
+            # Otherwise, parse timestamp from analysis_id format (CA-YYYYMMDD-HHMMSS)
+            if analysis_id.startswith('CA-'):
+                # Try direct file_hash match first (if analysis_id is stored in file_hash)
+                # Also try timestamp match as fallback for backward compatibility
+                conditions = []
+                condition_params = []
+                
+                # Add file_hash match
+                conditions.append("mr.file_hash = %s")
+                condition_params.append(analysis_id)
+                
+                # Also try timestamp match as fallback (for old data where file_hash was hashed)
+                if len(analysis_id) == 17:  # CA-YYYYMMDD-HHMMSS format
+                    try:
+                        date_part = analysis_id[3:11]  # YYYYMMDD
+                        time_part = analysis_id[12:16]  # HHMMSS
+                        year = date_part[:4]
+                        month = date_part[4:6]
+                        day = date_part[6:8]
+                        hour = time_part[:2]
+                        minute = time_part[2:4]
+                        sec = time_part[4:6]
+                        timestamp_str = f"{year}-{month}-{day} {hour}:{minute}:{sec}"
+                        conditions.append("mr.uploaded_at::timestamp = %s::timestamp")
+                        condition_params.append(timestamp_str)
+                    except Exception:
+                        pass  # If timestamp parsing fails, just use file_hash match
+                
+                # Combine conditions with OR
+                if len(conditions) > 1:
+                    where_clause_parts.append("(" + " OR ".join(conditions) + ")")
+                else:
+                    where_clause_parts.append(conditions[0])
+                
+                params.extend(condition_params)
             else:
                 return None
         else:
@@ -1066,6 +1241,24 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
         
         where_clause = " AND ".join(where_clause_parts)
         
+        # Debug logging
+        print(f"[RDS Debug] Query: WHERE {where_clause}")
+        print(f"[RDS Debug] Params: {params}")
+        
+        # Check if file_path column exists in medical_records
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.columns 
+                WHERE table_name = 'medical_records' AND column_name = 'file_path'
+            ) AS has_file_path
+        """)
+        result = cur.fetchone()
+        has_file_path = result.get('has_file_path') if isinstance(result, dict) else (result[0] if result else False)
+        
+        # Build SELECT clause with conditional columns
+        file_path_select = ", mr.file_path" if has_file_path else ", NULL AS file_path"
+        original_filename_select = ", mr.original_filename" if has_file_path else ", NULL AS original_filename"
+        
         # Get medical record
         cur.execute(f"""
             SELECT 
@@ -1076,6 +1269,8 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
                 mr.status,
                 p.user_id AS patient_id,
                 u.name AS patient_name
+                {file_path_select}
+                {original_filename_select}
             FROM medical_records mr
             LEFT JOIN patients p ON p.user_id = mr.patient_id
             LEFT JOIN users u ON u.id = COALESCE(p.user_id, mr.patient_id)
@@ -1085,9 +1280,22 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
         
         mr_row = cur.fetchone()
         if not mr_row:
+            print(f"[RDS Debug] No medical record found with WHERE clause: {where_clause}")
+            print(f"[RDS Debug] Search params were: {params}")
             return None
         
         medical_record_id = mr_row['medical_record_id']
+        
+        # Get the actual analysis_id from file_hash or construct from timestamp
+        file_hash_from_db = mr_row.get('file_hash', '')
+        if file_hash_from_db and file_hash_from_db.startswith('CA-'):
+            actual_analysis_id = file_hash_from_db
+        else:
+            # Construct from timestamp as fallback
+            ts = mr_row['timestamp']
+            actual_analysis_id = f"CA-{ts.strftime('%Y%m%d-%H%M%S')}"
+        
+        print(f"[RDS Debug] Found medical record: id={medical_record_id}, file_hash={file_hash_from_db}, analysis_id={actual_analysis_id}")
         
         # Get FHIR bundle
         cur.execute("""
@@ -1180,12 +1388,16 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
         elif not exp_row or not exp_row['low_confidence']:
             risk_level = 'low'
         
-        # Construct analysis_id from timestamp
-        ts = mr_row['timestamp']
-        analysis_id = f"CA-{ts.strftime('%Y%m%d-%H%M%S')}"
+        # Use the actual analysis_id we determined above
+        file_path_val = mr_row.get('file_path')
+        original_filename_val = mr_row.get('original_filename')
+        
+        # Debug logging
+        print(f"[RDS Retrieve Debug] Retrieved file_path: {file_path_val}")
+        print(f"[RDS Retrieve Debug] Retrieved original_filename: {original_filename_val}")
         
         return {
-            'analysis_id': analysis_id,
+            'analysis_id': actual_analysis_id,
             'medical_record_id': medical_record_id,
             'timestamp': mr_row['timestamp'],
             'success': mr_row['status'] in ('Processed', 'Explained', 'Checked'),
@@ -1201,6 +1413,467 @@ def get_clinical_analysis_result_from_rds(analysis_id: str = None, medical_recor
             'fhir_bundle': fhir_bundle,
             'explanation_text': explanation_text,
             'risks_md': risks_md,
-            'mistral_analysis': mistral_analysis
+            'mistral_analysis': mistral_analysis,
+            'file_path': file_path_val,
+            'original_filename': original_filename_val
         }
+
+
+def delete_clinical_analysis_from_rds(analysis_id: str, patient_user_id: int) -> bool:
+    """
+    Delete a clinical analysis from RDS.
+    Verifies ownership by checking patient_id matches the current user.
+    Returns True if deletion was successful, False otherwise.
+    """
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            conn.autocommit = False
+            
+            # Try to match by file_hash (analysis_id) first
+            # Also try matching by timestamp if analysis_id follows CA-YYYYMMDD-HHMMSS format
+            cur.execute("""
+                SELECT id, file_hash, patient_id, uploaded_at
+                FROM medical_records
+                WHERE patient_id = %s
+                AND (
+                    file_hash = %s
+                    OR file_hash LIKE %s
+                    OR (
+                        file_hash IS NULL 
+                        AND uploaded_at::text LIKE %s
+                    )
+                )
+                LIMIT 1
+            """, (
+                patient_user_id,
+                analysis_id,
+                f"%{analysis_id}%",
+                f"%{analysis_id.replace('CA-', '')}%"
+            ))
+            
+            mr_row = cur.fetchone()
+            
+            if not mr_row:
+                print(f"[RDS Delete] No medical record found for analysis_id={analysis_id}, patient_id={patient_user_id}")
+                return False
+            
+            medical_record_id = mr_row['id']
+            
+            # Verify ownership
+            if mr_row['patient_id'] != patient_user_id:
+                print(f"[RDS Delete] Ownership mismatch: record belongs to patient_id={mr_row['patient_id']}, but user is {patient_user_id}")
+                return False
+            
+            print(f"[RDS Delete] Found medical record: id={medical_record_id}, file_hash={mr_row.get('file_hash')}, patient_id={mr_row['patient_id']}")
+            
+            # Delete from related tables (cascading deletes will handle most, but we'll be explicit)
+            # Delete processing jobs
+            cur.execute("DELETE FROM processing_jobs WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Delete safety flags
+            cur.execute("DELETE FROM safety_flags WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Delete explanations (which may cascade to safety_flags via explanation_id)
+            cur.execute("DELETE FROM explanations WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Delete FHIR bundles
+            cur.execute("DELETE FROM fhir_bundles WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Delete from clinical_analysis_data if it exists
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'clinical_analysis_data'
+                )
+            """)
+            result = cur.fetchone()
+            has_clinical_data_table = result[0] if result else False
+            
+            if has_clinical_data_table:
+                cur.execute("DELETE FROM clinical_analysis_data WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Delete AI approvals if any
+            cur.execute("DELETE FROM ai_approvals WHERE medical_record_id = %s", (medical_record_id,))
+            
+            # Finally, delete the medical record itself (cascades will handle references)
+            cur.execute("DELETE FROM medical_records WHERE id = %s", (medical_record_id,))
+            
+            conn.commit()
+            
+            print(f"[RDS Delete] Successfully deleted analysis {analysis_id} (medical_record_id={medical_record_id})")
+            return True
+            
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            print(f"[RDS Delete] Error deleting analysis from RDS: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def get_all_approved_doctors() -> List[Dict[str, Any]]:
+    """Get all approved doctors with their specializations and details.
+    Returns list of doctors with id, username, name, email, specialization, 
+    license_number, ahpra_number, qualification, clinic_address, approval_status.
+    """
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.email,
+                    u.name,
+                    d.specialization,
+                    d.license_number,
+                    d.ahpra_number,
+                    d.qualification,
+                    d.clinic_address,
+                    d.approval_status
+                FROM users u
+                JOIN doctors d ON d.user_id = u.id
+                WHERE d.approval_status = 'Approved'
+                ORDER BY u.name, d.specialization
+            """)
+            doctors = cur.fetchall()
+            return [dict(doctor) for doctor in doctors] if doctors else []
+    except Exception as e:
+        print(f"[RDS] Error fetching approved doctors: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def save_review_request(patient_user_id: int, doctor_user_id: int, 
+                       medical_record_id: int, analysis_id: str, 
+                       notes: str = None) -> Optional[int]:
+    """Save a review request from patient to doctor.
+    Creates a pending review entry in ai_approvals table.
+    Returns the approval record id if successful, None otherwise.
+    """
+    try:
+        with _conn() as conn, conn.cursor() as cur:
+            # First, get the explanation_id if available
+            explanation_id = None
+            cur.execute("""
+                SELECT id FROM explanations 
+                WHERE medical_record_id = %s 
+                LIMIT 1
+            """, (medical_record_id,))
+            exp_row = cur.fetchone()
+            if exp_row:
+                explanation_id = exp_row[0]
+            
+            # Check if review request already exists
+            cur.execute("""
+                SELECT id FROM ai_approvals 
+                WHERE medical_record_id = %s AND doctor_id = %s AND signed_at IS NULL
+            """, (medical_record_id, doctor_user_id))
+            existing = cur.fetchone()
+            if existing:
+                print(f"[RDS] Review request already exists: approval_id={existing[0]}")
+                return existing[0]
+            
+            # Insert review request with decision='NeedsChanges' as pending review
+            # (We'll update it to 'Approved' or 'Rejected' when doctor reviews)
+            cur.execute("""
+                INSERT INTO ai_approvals (
+                    medical_record_id,
+                    explanation_id,
+                    doctor_id,
+                    decision,
+                    notes,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s::approval_decision, %s, NOW())
+                RETURNING id
+            """, (medical_record_id, explanation_id, doctor_user_id, 'NeedsChanges', notes))
+            
+            result = cur.fetchone()
+            if result:
+                approval_id = result[0]
+                conn.commit()
+                print(f"[RDS] Saved review request: approval_id={approval_id}, patient={patient_user_id}, doctor={doctor_user_id}, analysis={analysis_id}")
+                return approval_id
+            else:
+                conn.commit()
+                return None
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+        print(f"[RDS] Error saving review request: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def get_pending_reviews_for_doctor(doctor_user_id: int) -> List[Dict[str, Any]]:
+    """Get all pending reviews for a specific doctor from database.
+    Returns list of review requests with analysis details.
+    """
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    aa.id AS approval_id,
+                    aa.medical_record_id,
+                    aa.doctor_id,
+                    aa.decision,
+                    aa.notes,
+                    aa.created_at AS requested_at,
+                    mr.file_hash AS analysis_id,
+                    mr.patient_id,
+                    mr.document_type,
+                    mr.uploaded_at,
+                    mr.file_path,
+                    mr.original_filename,
+                    u.name AS patient_name,
+                    u.email AS patient_email,
+                    u.username AS patient_username
+                FROM ai_approvals aa
+                JOIN medical_records mr ON mr.id = aa.medical_record_id
+                JOIN users u ON u.id = mr.patient_id
+                WHERE aa.doctor_id = %s
+                AND aa.decision = 'NeedsChanges'  -- Pending reviews
+                AND aa.signed_at IS NULL  -- Not yet reviewed
+                ORDER BY aa.created_at DESC
+            """, (doctor_user_id,))
+            
+            reviews = cur.fetchall()
+            return [dict(review) for review in reviews] if reviews else []
+    except Exception as e:
+        print(f"[RDS] Error fetching pending reviews: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def update_approval_decision_in_rds(approval_id: int, doctor_user_id: int, 
+                                   decision: str, notes: str = None,
+                                   signed_at: datetime = None) -> bool:
+    """Update approval decision in ai_approvals table.
+    
+    Args:
+        approval_id: The ai_approvals.id to update
+        doctor_user_id: The doctor's user_id (for verification)
+        decision: 'Approved' or 'Rejected' (approval_decision enum)
+        notes: Optional notes from the doctor
+        signed_at: Timestamp when signed (defaults to NOW())
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        with _conn() as conn, conn.cursor() as cur:
+            # Verify the approval belongs to this doctor
+            cur.execute("""
+                SELECT id FROM ai_approvals 
+                WHERE id = %s AND doctor_id = %s
+            """, (approval_id, doctor_user_id))
+            verify = cur.fetchone()
+            
+            if not verify:
+                print(f"[RDS Update Approval] Approval {approval_id} not found for doctor {doctor_user_id}")
+                return False
+            
+            # Update the approval decision
+            update_time = signed_at or datetime.now()
+            cur.execute("""
+                UPDATE ai_approvals
+                SET decision = %s::approval_decision,
+                    notes = COALESCE(%s, notes),
+                    signed_at = %s
+                WHERE id = %s AND doctor_id = %s
+            """, (decision, notes, update_time, approval_id, doctor_user_id))
+            
+            conn.commit()
+            print(f"[RDS] Updated approval {approval_id}: decision={decision}, signed_at={update_time}")
+            return True
+            
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+        print(f"[RDS] Error updating approval decision: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def get_review_status_for_analysis(medical_record_id: int) -> Dict[str, Any]:
+    """Get review status for an analysis.
+    Returns dict with review_status, doctor_id, doctor_name, decision, etc.
+    """
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    aa.id AS approval_id,
+                    aa.doctor_id,
+                    aa.decision,
+                    aa.notes,
+                    aa.created_at AS requested_at,
+                    aa.signed_at AS reviewed_at,
+                    d.user_id,
+                    u.name AS doctor_name,
+                    u.email AS doctor_email
+                FROM ai_approvals aa
+                JOIN doctors d ON d.user_id = aa.doctor_id
+                JOIN users u ON u.id = d.user_id
+                WHERE aa.medical_record_id = %s
+                ORDER BY aa.created_at DESC
+                LIMIT 1
+            """, (medical_record_id,))
+            
+            review = cur.fetchone()
+            if review:
+                status = 'pending' if review.get('signed_at') is None else 'reviewed'
+                return {
+                    'status': status,
+                    'doctor_id': review.get('doctor_id'),
+                    'doctor_name': review.get('doctor_name'),
+                    'decision': review.get('decision'),
+                    'requested_at': review.get('requested_at'),
+                    'reviewed_at': review.get('reviewed_at'),
+                    'notes': review.get('notes')
+                }
+            return {'status': 'not_requested'}
+    except Exception as e:
+        print(f"[RDS] Error fetching review status: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'status': 'error'}
+
+
+def get_doctor_complete_profile(doctor_user_id: int) -> Optional[Dict[str, Any]]:
+    """Get complete doctor profile for viewing (used by admins and patients).
+    Returns dict with all user and doctor-specific details.
+    """
+    try:
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Check if user exists in doctors table (that's how we identify doctors)
+            cur.execute("""
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.email,
+                    u.name,
+                    u.created_at AS user_created_at,
+                    d.specialization,
+                    d.license_number,
+                    d.ahpra_number,
+                    d.qualification,
+                    d.clinic_address,
+                    d.approval_status,
+                    d.created_at AS doctor_created_at
+                FROM users u
+                INNER JOIN doctors d ON d.user_id = u.id
+                WHERE u.id = %s
+            """, (doctor_user_id,))
+            
+            profile = cur.fetchone()
+            if profile:
+                return dict(profile)
+            
+            # Debug: Check if user exists at all
+            cur.execute("SELECT id, username, name, email FROM users WHERE id = %s", (doctor_user_id,))
+            user_check = cur.fetchone()
+            if user_check:
+                print(f"[RDS Debug] User {doctor_user_id} exists but is not in doctors table")
+            else:
+                print(f"[RDS Debug] User {doctor_user_id} does not exist")
+            
+            return None
+    except Exception as e:
+        print(f"[RDS] Error fetching doctor profile: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def get_review_history_from_rds(doctor_user_id: int = None, limit: int = 1000) -> List[Dict[str, Any]]:
+    """
+    Fetch all review history (approval decisions) from AWS RDS.
+    
+    Args:
+        doctor_user_id: Optional filter by specific doctor. If None, returns all reviews.
+        limit: Maximum number of records to return (default 1000)
+    
+    Returns:
+        List of dictionaries containing review history data with structure:
+        {
+            'approval_id': int,
+            'medical_record_id': int,
+            'analysis_id': str (file_hash),
+            'doctor_id': int,
+            'doctor_name': str,
+            'decision': str ('Approved', 'Rejected', 'NeedsChanges'),
+            'notes': str,
+            'signed_at': datetime,
+            'created_at': datetime,
+            'patient_name': str
+        }
+    """
+    try:
+        from psycopg2.extras import RealDictCursor
+        
+        with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            query = """
+                SELECT 
+                    aa.id AS approval_id,
+                    aa.medical_record_id,
+                    aa.doctor_id,
+                    aa.decision,
+                    aa.notes,
+                    aa.signed_at,
+                    aa.created_at,
+                    mr.file_hash AS analysis_id,
+                    mr.patient_id,
+                    COALESCE(u.name, u.username, 'Unknown Doctor') AS doctor_name,
+                    COALESCE(p.name, pu.name, pu.username, 'Unknown Patient') AS patient_name
+                FROM ai_approvals aa
+                JOIN medical_records mr ON mr.id = aa.medical_record_id
+                JOIN doctors d ON d.user_id = aa.doctor_id
+                JOIN users u ON u.id = d.user_id
+                LEFT JOIN patients p ON p.user_id = mr.patient_id
+                LEFT JOIN users pu ON pu.id = mr.patient_id
+                WHERE aa.signed_at IS NOT NULL
+            """
+            
+            params = []
+            if doctor_user_id:
+                query += " AND aa.doctor_id = %s"
+                params.append(doctor_user_id)
+            
+            query += " ORDER BY aa.signed_at DESC LIMIT %s"
+            params.append(limit)
+            
+            cur.execute(query, params)
+            rows = cur.fetchall()
+            
+            reviews = []
+            for row in rows:
+                review = {
+                    'approval_id': row.get('approval_id'),
+                    'medical_record_id': row.get('medical_record_id'),
+                    'analysis_id': row.get('analysis_id') or f"MR-{row.get('medical_record_id')}",
+                    'doctor_id': row.get('doctor_id'),
+                    'doctor_name': row.get('doctor_name') or 'Unknown Doctor',
+                    'decision': row.get('decision'),
+                    'notes': row.get('notes') or '',
+                    'signed_at': row.get('signed_at'),
+                    'created_at': row.get('created_at'),
+                    'patient_name': row.get('patient_name') or 'Unknown Patient',
+                    'patient_id': row.get('patient_id')
+                }
+                reviews.append(review)
+            
+            print(f"[RDS Review History] Fetched {len(reviews)} reviews from database")
+            return reviews
+            
+    except Exception as e:
+        print(f"[RDS Review History] Error fetching review history: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 

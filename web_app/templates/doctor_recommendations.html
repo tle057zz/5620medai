@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Recommended Doctors - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="bi bi-people-fill text-info"></i> Recommended Doctors</h2>
+            <p class="text-muted">AI-powered recommendations based on your clinical analysis</p>
+            
+            {% if analysis_result %}
+            <div class="alert alert-info">
+                <strong>Analysis:</strong> {{ analysis_result.analysis_id }}
+                {% if analysis_result.conditions %}
+                <br><strong>Conditions:</strong> {{ analysis_result.conditions[:5]|join(', ') }}{% if analysis_result.conditions|length > 5 %}, ...{% endif %}
+                {% endif %}
+                {% if analysis_result.risk_level %}
+                <br><strong>Risk Level:</strong> <span class="badge bg-{% if analysis_result.risk_level == 'HIGH' %}danger{% elif analysis_result.risk_level == 'MEDIUM' %}warning{% else %}success{% endif %}">{{ analysis_result.risk_level }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if recommended_doctors %}
+            <div class="row">
+                {% for doctor in recommended_doctors %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-person-badge"></i> 
+                                {% if doctor.name %}
+                                    Dr. {{ doctor.name }}
+                                {% else %}
+                                    {{ doctor.username }}
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if doctor.specialization %}
+                            <p class="mb-2">
+                                <strong><i class="bi bi-briefcase"></i> Specialization:</strong><br>
+                                <span class="badge bg-info">{{ doctor.specialization }}</span>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.qualification %}
+                            <p class="mb-2">
+                                <strong><i class="bi bi-award"></i> Qualification:</strong><br>
+                                <small>{{ doctor.qualification }}</small>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.clinic_address %}
+                            <p class="mb-2">
+                                <strong><i class="bi bi-geo-alt"></i> Clinic:</strong><br>
+                                <small>{{ doctor.clinic_address }}</small>
+                            </p>
+                            {% endif %}
+                            
+                            {% if doctor.ahpra_number %}
+                            <p class="mb-0">
+                                <strong><i class="bi bi-shield-check"></i> AHPRA:</strong><br>
+                                <small class="text-muted">{{ doctor.ahpra_number }}</small>
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="d-grid gap-2">
+                                <form method="POST" action="{{ url_for('request_doctor_review', analysis_id=analysis_id, doctor_user_id=doctor.id) }}" 
+                                      onsubmit="return confirm('Send review request to Dr. {{ doctor.name or doctor.username }}?');" 
+                                      class="mb-2">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-send"></i> Request Review
+                                    </button>
+                                </form>
+                                <a href="{{ url_for('view_doctor_profile', doctor_user_id=doctor.id) }}" 
+                                   class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-eye"></i> View Profile
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> No doctors found at this time. Please try again later.
+            </div>
+            {% endif %}
+
+            <div class="mt-4">
+                <a href="{{ url_for('clinical_analysis_results', analysis_id=analysis_id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Analysis Results
+                </a>
+                <a href="{{ url_for('clinical_analysis_history') }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-clock-history"></i> View History
+                </a>
+                <a href="{{ url_for('dashboard') }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-house-door"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

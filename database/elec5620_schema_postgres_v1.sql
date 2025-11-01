@@ -258,6 +258,8 @@ CREATE TABLE medical_records (
     pages           INT CHECK (pages >= 0),
     size_mb         NUMERIC(10,3) CHECK (size_mb >= 0),
     document_type   TEXT,  -- 'medical_report', 'lab_results', 'imaging_report', 'prescription', 'discharge_summary', 'pathology', 'consultation', 'other'
+    file_path       TEXT,  -- Path to the uploaded file (relative to uploads folder, organized by user_id_analysis_id)
+    original_filename TEXT,  -- Original filename when uploaded
     uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status          medical_record_status NOT NULL DEFAULT 'Uploaded'
 );

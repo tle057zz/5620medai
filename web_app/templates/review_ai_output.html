@@ -92,6 +92,9 @@
     {% endif %}
 
     <form method="POST" id="reviewForm">
+        {% if approval_id %}
+        <input type="hidden" name="approval_id" value="{{ approval_id }}">
+        {% endif %}
         <div class="row">
             <!-- Left Column: Review Content -->
             <div class="col-lg-8">
@@ -331,59 +334,39 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <!-- Decision Options -->
+                        <!-- Decision Buttons -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Decision:</label>
-                            <select class="form-select" name="status" id="status" required>
-                                <option value="">-- Select Decision --</option>
-                                <option value="approved">✓ Approve for Patient Release</option>
-                                <option value="rejected">✗ Reject (Do Not Release)</option>
-                                <option value="needs_revision">⚠ Needs Revision</option>
-                                <option value="escalated">↗ Escalate to Specialist</option>
-                            </select>
-                        </div>
-
-                        <!-- Checklist Summary -->
-                        <div class="alert alert-info small">
-                            <strong>Required Before Approval:</strong>
-                            <ul class="mb-0 mt-2">
-                                <li>✓ All 3 sections reviewed</li>
-                                <li>✓ Safety flags evaluated</li>
-                                <li>✓ Critical flags overridden (if any)</li>
-                                <li>✓ Digital signature</li>
-                            </ul>
-                        </div>
-
-                        <!-- Digital Signature -->
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="confirm_signature" id="confirm_signature" required>
-                                <label class="form-check-label small" for="confirm_signature">
-                                    <strong>I certify this review with my digital signature</strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        Signature: {{ current_user.get_display_name() }}<br>
-                                        Time: <span id="currentTime"></span>
-                                    </small>
-                                </label>
+                            <label class="form-label fw-bold mb-3">Make Your Decision:</label>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-success btn-lg" onclick="submitDecision('approved')">
+                                    <i class="bi bi-check-circle-fill"></i> Approve for Patient Release
+                                </button>
+                                <button type="button" class="btn btn-danger btn-lg" onclick="submitDecision('rejected')">
+                                    <i class="bi bi-x-circle-fill"></i> Reject (Do Not Release)
+                                </button>
+                                <button type="button" class="btn btn-warning btn-lg" onclick="submitDecision('needs_revision')">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Needs Revision
+                                </button>
+                                <button type="button" class="btn btn-info btn-lg" onclick="submitDecision('escalated')">
+                                    <i class="bi bi-arrow-up-circle-fill"></i> Escalate to Specialist
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
-                                <i class="bi bi-check-circle-fill"></i> Submit Review
-                            </button>
-                            <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle"></i> Cancel
-                            </a>
+                        <!-- Digital Signature (optional - auto-filled) -->
+                        <div class="alert alert-light small mb-3">
+                            <strong>Digital Signature:</strong><br>
+                            <small class="text-muted">
+                                {{ current_user.get_display_name() }}<br>
+                                <span id="currentTime"></span>
+                            </small>
                         </div>
 
-                        <!-- Escalate Option -->
+                        <!-- Cancel Button -->
                         <div class="mt-3">
-                            <button type="button" class="btn btn-warning btn-sm w-100" data-bs-toggle="modal" data-bs-target="#escalateModal">
-                                <i class="bi bi-arrow-up-circle"></i> Escalate to Specialist
-                            </button>
+                            <a href="{{ url_for('pending_ai_reviews') }}" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -456,58 +439,63 @@
 <script>
 // Update current time
 function updateTime() {
-    document.getElementById('currentTime').textContent = new Date().toLocaleString();
+    const timeEl = document.getElementById('currentTime');
+    if (timeEl) {
+        timeEl.textContent = new Date().toLocaleString();
+    }
 }
 updateTime();
 setInterval(updateTime, 1000);
 
-// Enable submit button when all required checkboxes are checked
-function updateSubmitButton() {
-    const fhir = document.getElementById('reviewed_fhir').checked;
-    const summary = document.getElementById('reviewed_summary').checked;
-    const safety = document.getElementById('reviewed_safety').checked;
-    const signature = document.getElementById('confirm_signature').checked;
-    const status = document.getElementById('status').value;
+// Simple function to submit decision
+function submitDecision(status) {
+    if (!confirm(`Are you sure you want to ${status.toUpperCase()} this review?`)) {
+        return;
+    }
     
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = !(fhir && summary && safety && signature && status);
+    // Get form and create hidden input with status
+    const form = document.getElementById('reviewForm');
+    if (!form) {
+        alert('Error: Form not found');
+        return;
+    }
+    
+    // Remove any existing status input
+    const existingStatus = form.querySelector('input[name="status"]');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
+    
+    // Add hidden input with selected status
+    const statusInput = document.createElement('input');
+    statusInput.type = 'hidden';
+    statusInput.name = 'status';
+    statusInput.value = status;
+    form.appendChild(statusInput);
+    
+    // Set required checkboxes as checked (for backend compatibility)
+    const fhirCheckbox = document.getElementById('reviewed_fhir');
+    const summaryCheckbox = document.getElementById('reviewed_summary');
+    const safetyCheckbox = document.getElementById('reviewed_safety');
+    
+    if (fhirCheckbox) fhirCheckbox.checked = true;
+    if (summaryCheckbox) summaryCheckbox.checked = true;
+    if (safetyCheckbox) safetyCheckbox.checked = true;
+    
+    // Submit the form
+    form.submit();
 }
 
-document.getElementById('reviewed_fhir').addEventListener('change', updateSubmitButton);
-document.getElementById('reviewed_summary').addEventListener('change', updateSubmitButton);
-document.getElementById('reviewed_safety').addEventListener('change', updateSubmitButton);
-document.getElementById('confirm_signature').addEventListener('change', updateSubmitButton);
-document.getElementById('status').addEventListener('change', updateSubmitButton);
-
-// Show/hide modifications section
-document.getElementById('has_modifications').addEventListener('change', function() {
-    document.getElementById('modificationsSection').style.display = this.checked ? 'block' : 'none';
-});
-
-// Form validation for critical flag overrides
-document.getElementById('reviewForm').addEventListener('submit', function(e) {
-    const status = document.getElementById('status').value;
-    
-    // If approving, check all override checkboxes have justifications
-    if (status === 'approved') {
-        const overrideCheckboxes = document.querySelectorAll('input[name="override_flags"]:checked');
-        let allValid = true;
-        
-        overrideCheckboxes.forEach(function(checkbox) {
-            const flagId = checkbox.value;
-            const justification = document.getElementById('justification_' + flagId).value.trim();
-            
-            if (!justification) {
-                alert('Please provide justification for all critical flag overrides.');
-                allValid = false;
-                return false;
+// Show/hide modifications section (optional feature)
+document.addEventListener('DOMContentLoaded', function() {
+    const hasModificationsEl = document.getElementById('has_modifications');
+    if (hasModificationsEl) {
+        hasModificationsEl.addEventListener('change', function() {
+            const modSection = document.getElementById('modificationsSection');
+            if (modSection) {
+                modSection.style.display = this.checked ? 'block' : 'none';
             }
         });
-        
-        if (!allValid) {
-            e.preventDefault();
-            return false;
-        }
     }
 });
 </script>

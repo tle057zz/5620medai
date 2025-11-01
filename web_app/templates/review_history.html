@@ -48,8 +48,9 @@
             <div class="card border-success h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-check-circle-fill display-4 text-success"></i>
-                    <h3 class="mt-2">
-                        {{ decisions|selectattr('status.value', 'equalto', 'approved')|list|length }}
+                    <h3 class="mt-2" id="approvedCount">
+                        {% set approved = decisions|selectattr('status.value', 'equalto', 'approved')|list %}
+                        {{ approved|length }}
                     </h3>
                     <p class="text-muted mb-0">Approved</p>
                 </div>
@@ -59,8 +60,9 @@
             <div class="card border-danger h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-x-circle-fill display-4 text-danger"></i>
-                    <h3 class="mt-2">
-                        {{ decisions|selectattr('status.value', 'equalto', 'rejected')|list|length }}
+                    <h3 class="mt-2" id="rejectedCount">
+                        {% set rejected = decisions|selectattr('status.value', 'equalto', 'rejected')|list %}
+                        {{ rejected|length }}
                     </h3>
                     <p class="text-muted mb-0">Rejected</p>
                 </div>
@@ -70,8 +72,9 @@
             <div class="card border-warning h-100">
                 <div class="card-body text-center">
                     <i class="bi bi-arrow-up-circle-fill display-4 text-warning"></i>
-                    <h3 class="mt-2">
-                        {{ decisions|selectattr('status.value', 'equalto', 'escalated')|list|length }}
+                    <h3 class="mt-2" id="escalatedCount">
+                        {% set escalated = decisions|selectattr('status.value', 'equalto', 'escalated')|list %}
+                        {{ escalated|length }}
                     </h3>
                     <p class="text-muted mb-0">Escalated</p>
                 </div>
@@ -154,7 +157,7 @@
                                 {% for decision in decisions %}
                                 <tr data-status="{{ decision.status.value }}" 
                                     data-reviewer="{{ decision.reviewer_name }}" 
-                                    data-date="{{ decision.timestamp.strftime('%Y-%m-%d') }}">
+                                    data-date="{% if decision.timestamp and hasattr(decision.timestamp, 'strftime') %}{{ decision.timestamp.strftime('%Y-%m-%d') }}{% else %}N/A{% endif %}">
                                     <!-- Decision ID -->
                                     <td>
                                         <small class="font-monospace">
@@ -200,7 +203,11 @@
                                     
                                     <!-- Timestamp -->
                                     <td>
-                                        <small>{{ decision.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        {% if decision.timestamp %}
+                                        <small>{{ decision.timestamp.strftime('%Y-%m-%d %H:%M') if hasattr(decision.timestamp, 'strftime') else decision.timestamp }}</small>
+                                        {% else %}
+                                        <small class="text-muted">N/A</small>
+                                        {% endif %}
                                     </td>
                                     
                                     <!-- Safety Overrides -->

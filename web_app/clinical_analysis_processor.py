@@ -104,6 +104,10 @@ class ClinicalAnalysisResult:
         
         # Mistral LLM Analysis (additional AI analysis using mistral:7b-instruct)
         self.mistral_analysis = None
+        
+        # File path information
+        self.file_path = None  # Relative path (e.g., "user_id_analysis_id/filename.pdf")
+        self.original_filename = None  # Original filename when uploaded
     
     def add_processing_step(self, step_name: str, status: str, details: str = ""):
         """Track pipeline progress"""
@@ -133,7 +137,9 @@ class ClinicalAnalysisResult:
             "document_type": self.document_type,
             "processing_steps": self.processing_steps,
             "fhir_bundle": self.fhir_bundle,
-            "safety_report": self.safety_report
+            "safety_report": self.safety_report,
+            "file_path": self.file_path,
+            "original_filename": self.original_filename
         }
 
 
@@ -766,16 +772,27 @@ def process_clinical_document(
 analysis_results_storage: Dict[str, ClinicalAnalysisResult] = {}
 
 
-def save_analysis_result(result: ClinicalAnalysisResult, patient_id: str = None) -> str:
+def save_analysis_result(result: ClinicalAnalysisResult, patient_id: str = None, 
+                         notes: str = None, file_path: str = None, original_filename: str = None) -> str:
     """
     Save analysis result to in-memory storage and to AWS RDS database
     Returns analysis_id
     """
+    print(f"[Save Debug] save_analysis_result called: analysis_id={result.analysis_id}, patient_id={patient_id}")
+    print(f"[Save Debug] file_path={file_path}, original_filename={original_filename}")
+    
+    # Store file path and original filename in result object
+    if file_path:
+        result.file_path = file_path
+    if original_filename:
+        result.original_filename = original_filename
     # In-memory storage
     analysis_results_storage[result.analysis_id] = result
+    print(f"[Save Debug] Saved to in-memory storage")
     
     # Try to save to AWS RDS database
     if patient_id:
+        print(f"[Save Debug] Attempting to save to RDS for patient_id={patient_id}")
         try:
             from hashlib import sha256
             import json as jsonlib
@@ -790,17 +807,24 @@ def save_analysis_result(result: ClinicalAnalysisResult, patient_id: str = None)
                 print(f"⚠ Could not convert patient_id to int: {patient_id}")
                 return result.analysis_id
             
-            # Create file_hash from analysis_id
-            file_hash = sha256(result.analysis_id.encode()).hexdigest()[:32]
+            # Store analysis_id directly in file_hash for easy lookup
+            # This allows us to retrieve analyses by their analysis_id
+            file_hash = result.analysis_id  # Store analysis_id directly instead of hashing
             
             # Save medical record to RDS (this was already done in clinical_analysis route, but ensure it exists)
+            print(f"[Save Debug] Calling save_medical_record_to_rds with file_hash={file_hash}")
+            print(f"[Save Debug] file_path parameter: {file_path}")
+            print(f"[Save Debug] original_filename parameter: {original_filename}")
             record_id = save_medical_record_to_rds(
                 patient_user_id=patient_user_id,
                 file_hash=file_hash,
                 document_type=result.document_type,
                 status='Processed' if result.success else 'Failed',
-                uploaded_at=result.timestamp
+                uploaded_at=result.timestamp,
+                file_path=file_path,
+                original_filename=original_filename
             )
+            print(f"[Save Debug] save_medical_record_to_rds returned record_id={record_id}")
             
             if record_id:
                 # Connect to RDS to save FHIR, explanation, and safety flags
@@ -902,19 +926,25 @@ def save_analysis_result(result: ClinicalAnalysisResult, patient_id: str = None)
                         
                         conn.commit()
                         print(f"✓ Saved complete analysis to AWS RDS (record_id: {record_id}, analysis_id: {result.analysis_id})")
+                        print(f"[Save Debug] Successfully committed to RDS")
                         
                     except Exception as e:
                         conn.rollback()
                         print(f"⚠ Error saving analysis details to RDS: {e}")
                         import traceback
                         traceback.print_exc()
+            else:
+                print(f"[Save Debug] No record_id returned from save_medical_record_to_rds - cannot save analysis details")
             
         except Exception as e:
             print(f"⚠ Could not save analysis to AWS RDS: {e}")
             import traceback
             traceback.print_exc()
             # Continue anyway - in-memory storage works
+    else:
+        print(f"[Save Debug] No patient_id provided - skipping RDS save")
     
+    print(f"[Save Debug] Returning analysis_id: {result.analysis_id}")
     return result.analysis_id
 
 
@@ -922,6 +952,8 @@ def get_analysis_result(analysis_id: str, patient_user_id: int = None) -> Option
     """Retrieve analysis result by ID - tries RDS first, then in-memory storage.
     If patient_user_id is provided, ensures the analysis belongs to that user.
     """
+    print(f"[Debug] get_analysis_result called: analysis_id={analysis_id}, patient_user_id={patient_user_id}")
+    
     # Try RDS first
     try:
         if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
@@ -929,6 +961,7 @@ def get_analysis_result(analysis_id: str, patient_user_id: int = None) -> Option
             rds_result = get_clinical_analysis_result_from_rds(analysis_id=analysis_id, patient_user_id=patient_user_id)
             
             if rds_result:
+                print(f"[Debug] Found result in RDS: analysis_id={rds_result.get('analysis_id')}")
                 # Convert RDS dict to ClinicalAnalysisResult object
                 result = ClinicalAnalysisResult()
                 result.analysis_id = rds_result['analysis_id']
@@ -947,14 +980,48 @@ def get_analysis_result(analysis_id: str, patient_user_id: int = None) -> Option
                 result.explanation_text = rds_result.get('explanation_text')
                 result.mistral_analysis = rds_result.get('mistral_analysis')
                 result.safety_report = {'high_risk': [], 'moderate_risk': [], 'summary': 'No red flags detected'}
+                result.file_path = rds_result.get('file_path')
+                result.original_filename = rds_result.get('original_filename')
+                
+                # If file_path is missing but analysis exists, try to find the file in uploads folder
+                if not result.file_path and analysis_id.startswith('CA-') and patient_user_id:
+                    try:
+                        # Files are stored in uploads/user_id_analysis_id/filename.pdf
+                        # clinical_analysis_processor.py is in web_app/, so uploads is also in web_app/
+                        current_file_dir = os.path.dirname(os.path.abspath(__file__))
+                        upload_folder = os.path.join(current_file_dir, 'uploads')
+                        
+                        pattern_folder = f"{patient_user_id}_{analysis_id}"
+                        pattern_path = os.path.join(upload_folder, pattern_folder)
+                        if os.path.exists(pattern_path):
+                            # Find any files in that folder
+                            for f in os.listdir(pattern_path):
+                                if f.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx')):
+                                    result.file_path = os.path.join(pattern_folder, f)
+                                    if not result.original_filename:
+                                        result.original_filename = f
+                                    print(f"[Get Result Debug] Found file on disk: {result.file_path}")
+                                    break
+                    except Exception as e:
+                        print(f"[Get Result Debug] Error finding file for {analysis_id}: {e}")
                 
                 print(f"✓ Loaded analysis from AWS RDS: {analysis_id}")
                 return result
+            else:
+                print(f"[Debug] No result found in RDS for analysis_id={analysis_id}")
     except Exception as e:
         print(f"⚠ Could not load from RDS: {e}")
+        import traceback
+        traceback.print_exc()
     
     # Fallback to in-memory storage
-    return analysis_results_storage.get(analysis_id)
+    print(f"[Debug] Trying in-memory storage for analysis_id={analysis_id}")
+    in_memory_result = analysis_results_storage.get(analysis_id)
+    if in_memory_result:
+        print(f"[Debug] Found result in in-memory storage")
+    else:
+        print(f"[Debug] No result found in in-memory storage either")
+    return in_memory_result
 
 
 def get_user_analysis_history(user_id: str, limit: int = 20) -> List[ClinicalAnalysisResult]:
@@ -986,6 +1053,27 @@ def get_user_analysis_history(user_id: str, limit: int = 20) -> List[ClinicalAna
                         result.medications = hist.get('medications', [])
                         result.risk_level = hist.get('risk_level', 'unknown')
                         result.red_flags = hist.get('red_flags', [])
+                        result.file_path = hist.get('file_path')  # Store file path for future access
+                        result.original_filename = hist.get('original_filename')  # Store original filename
+                        
+                        # If file_path is still missing, try to find file on disk (fallback from history query)
+                        # This is already handled in get_clinical_analysis_history_for_user, but ensure it's set
+                        if not result.file_path and result.analysis_id.startswith('CA-') and patient_user_id:
+                            try:
+                                current_file_dir = os.path.dirname(os.path.abspath(__file__))
+                                upload_folder = os.path.join(current_file_dir, 'uploads')
+                                pattern_folder = f"{patient_user_id}_{result.analysis_id}"
+                                pattern_path = os.path.join(upload_folder, pattern_folder)
+                                if os.path.exists(pattern_path):
+                                    for f in os.listdir(pattern_path):
+                                        if f.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx')):
+                                            result.file_path = os.path.join(pattern_folder, f)
+                                            if not result.original_filename:
+                                                result.original_filename = f
+                                            break
+                            except Exception as e:
+                                pass  # Silently fail if file discovery doesn't work
+                        
                         results.append(result)
                     
                     if results:
