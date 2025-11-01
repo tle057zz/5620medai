@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - Clinical AI System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow-lg border-0 rounded-lg mt-5">
+            <div class="card-header bg-primary text-white text-center py-4">
+                <h3><i class="bi bi-person-plus-fill"></i> Create Account</h3>
+                <p class="mb-0">Join Clinical AI System</p>
+            </div>
+            
+            <div class="card-body p-5">
+                <form method="POST" action="{{ url_for('signup') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Basic Information -->
+                    <h5 class="mb-3"><i class="bi bi-person"></i> Basic Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            {{ form.username(class="form-control") }}
+                            {% if form.username.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.username.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            {{ form.email(class="form-control") }}
+                            {% if form.email.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.email.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name</label>
+                        {{ form.name(class="form-control") }}
+                        {% if form.name.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Password -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            {{ form.password(class="form-control") }}
+                            {% if form.password.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.password.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Minimum 8 characters</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="confirm_password" class="form-label">Confirm Password</label>
+                            {{ form.confirm_password(class="form-control") }}
+                            {% if form.confirm_password.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.confirm_password.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Account Type -->
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Account Type</label>
+                        {{ form.role(class="form-select", id="role-select") }}
+                        {% if form.role.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.role.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Doctor-specific fields (shown when role is doctor) -->
+                    <div id="doctor-fields" style="display: none;">
+                        <hr class="my-4">
+                        <h5 class="mb-3"><i class="bi bi-heart-pulse"></i> Doctor Information</h5>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Doctor accounts require admin approval. Please provide accurate information.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="specialization" class="form-label">
+                                    Specialization <span class="text-danger">*</span>
+                                </label>
+                                {{ form.specialization(class="form-control") }}
+                                {% if form.specialization.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.specialization.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ahpra_number" class="form-label">
+                                    AHPRA Provider/Registration Number <span class="text-danger">*</span>
+                                </label>
+                                {{ form.ahpra_number(class="form-control") }}
+                                {% if form.ahpra_number.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.ahpra_number.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Required for verification</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="qualification" class="form-label">Qualification</label>
+                            {{ form.qualification(class="form-control") }}
+                            {% if form.qualification.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.qualification.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="clinic_address" class="form-label">Clinic Address</label>
+                            {{ form.clinic_address(class="form-control") }}
+                            {% if form.clinic_address.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.clinic_address.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Terms -->
+                    <hr class="my-4">
+                    <div class="mb-3 form-check">
+                        {{ form.terms_accepted(class="form-check-input") }}
+                        <label class="form-check-label" for="terms_accepted">
+                            I accept the <a href="#" target="_blank">Terms and Conditions</a>
+                        </label>
+                        {% if form.terms_accepted.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.terms_accepted.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="text-muted mb-0">Already have an account? 
+                        <a href="{{ url_for('login') }}">Sign In</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role-select');
+    const doctorFields = document.getElementById('doctor-fields');
+    
+    function toggleDoctorFields() {
+        if (roleSelect.value === 'doctor') {
+            doctorFields.style.display = 'block';
+            // Make doctor fields required
+            document.getElementById('specialization').required = true;
+            document.getElementById('ahpra_number').required = true;
+        } else {
+            doctorFields.style.display = 'none';
+            // Remove required attribute
+            document.getElementById('specialization').required = false;
+            document.getElementById('ahpra_number').required = false;
+        }
+    }
+    
+    roleSelect.addEventListener('change', toggleDoctorFields);
+    toggleDoctorFields(); // Initial check
+});
+</script>
+{% endblock %}
+

@@ -26,6 +26,9 @@ class InsuranceQuoteEngine:
     """AI-powered insurance quote matching engine"""
     
     def __init__(self):
+        self.progress_cb = None
+        self.total_products = 1
+        self.idx = 0
         # Prefer Australian fund catalog products; fallback to sample if import fails
         try:
             products = get_au_insurance_products()
@@ -71,7 +74,26 @@ class InsuranceQuoteEngine:
         # Step 5: Rank quotes by overall score
         quotes.sort(key=lambda q: q.overall_score, reverse=True)
         
-        return quotes
+        # Step 6: Decide how many to show (AI-assisted with fallback)
+        top_k = None
+        use_ai_topk = normalized.get('use_ai_explainer') or os.environ.get('USE_AI_TOPK', 'false').lower() in {'1','true','yes'}
+        if use_ai_topk:
+            try:
+                from ai_explainer import decide_top_k
+                top_k = decide_top_k(normalized, risk_score, len(quotes), progress_cb=progress_cb)
+            except Exception:
+                top_k = None
+        if top_k is None:
+            # Fallback heuristic
+            top_k = 10
+            if risk_score >= 70:
+                top_k = 6
+            elif risk_score >= 55:
+                top_k = 8
+            elif risk_score <= 35:
+                top_k = 12
+        
+        return quotes[:max(1, min(top_k, len(quotes)))]
     
     def _normalize_data(self, request: QuoteRequest) -> dict:
         """
@@ -216,7 +238,17 @@ class InsuranceQuoteEngine:
         """
         eligible = []
         
+        # Avoid restricted membership funds by default (unless explicitly allowed)
+        restricted_names = {
+            'Defence Health', 'Police Health', 'Teachers Health', 'Navy Health',
+            "Doctors' Health Fund", 'CBHS Health Fund', 'Reserve Bank Health Society',
+            'ACA Health Benefits Fund', 'RT Health Fund', 'Transport Health / Union Health'
+        }
+        allow_restricted = os.environ.get('ALLOW_RESTRICTED_FUNDS', 'false').lower() in {'1','true','yes'}
+
         for product in products:
+            if not allow_restricted and product.provider in restricted_names:
+                continue
             # Rule 1: High-risk patients may not qualify for budget plans
             if risk_score > 70 and product.plan_type == 'HMO' and product.monthly_premium < 250:
                 continue
@@ -225,6 +257,20 @@ class InsuranceQuoteEngine:
             if normalized_data['income_bracket'] == 'low' and product.monthly_premium > 400:
                 continue
             
+            # Rule 2b: Very high cost plans are filtered out based on income affordability
+            annual_income_map = {
+                'low': 25000,
+                'middle': 50000,
+                'upper-middle': 100000,
+                'high': 200000,
+            }
+            est_income = annual_income_map.get(normalized_data['income_bracket'], 50000)
+            est_cost = product.monthly_premium * 12 + product.annual_deductible * 0.5
+            cost_ratio = est_cost / est_income if est_income else 1.0
+            # Filter out plans that would exceed ~25% of income (typical affordability threshold)
+            if cost_ratio > 0.25:
+                continue
+
             # Rule 3: Cancer patients need comprehensive coverage
             if 'cancer' in normalized_data['conditions']:
                 if product.coverage_amount < 500000:
@@ -255,6 +301,12 @@ class InsuranceQuoteEngine:
         
         # Calculate coverage score (0-100)
         coverage_score = self._calculate_coverage_score(product, normalized_data)
+        
+        # Optional AI re-scoring and blending
+        suitability_score, cost_score, coverage_score = self._maybe_rescore_with_ai(
+            product, normalized_data, risk_score,
+            suitability_score, cost_score, coverage_score
+        )
         
         # Generate rationale
         rationale = self._generate_rationale(
@@ -293,6 +345,10 @@ class InsuranceQuoteEngine:
                 save_dir=save_dir,
                 request_id=req_id,
                 product_id=product_id,
+                progress_cb=self.progress_cb,
+                provider=product.provider,
+                current=self.idx + 1,
+                total=self.total_products,
             )
             mistral_txt = (ration.get('mistral:7b-instruct') or '').strip()
             pieces = [baseline]
@@ -306,6 +362,13 @@ class InsuranceQuoteEngine:
                     f"</div>"
                 )
                 pieces.append(ai_html)
+            # update progress proportionally for explanation stage (75→90)
+            if self.progress_cb and self.total_products:
+                try:
+                    pct = 75 + int(15 * (self.idx + 1) / self.total_products)
+                    self.progress_cb(pct, f"AI analyzer: explanation for {product.provider} ({self.idx + 1}/{self.total_products})")
+                except Exception:
+                    pass
             return "<br/>".join(pieces)
         except Exception:
             return baseline
@@ -350,6 +413,40 @@ class InsuranceQuoteEngine:
             score += 10
         
         return min(max(score, 0), 100)
+
+    def _maybe_rescore_with_ai(self, product: InsuranceProduct, normalized_data: dict, risk_score: float,
+                                suit: float, cost: float, cov: float) -> Tuple[float, float, float]:
+        """Blend AI scores with rule-based scores when enabled.
+
+        Enabled when user checked AI analyzer or env USE_AI_SCORER=true.
+        Blend weights default to 0.6 rule / 0.4 AI. Adds small diversity jitter.
+        """
+        if not (normalized_data.get('use_ai_explainer') or os.environ.get('USE_AI_SCORER', 'false').lower() in {'1','true','yes'}):
+            return suit, cost, cov
+        try:
+            from ai_explainer import score_plan_with_ai
+            scores = score_plan_with_ai(product.to_dict(), normalized_data, risk_score, progress_cb=self.progress_cb)
+            if not scores:
+                return suit, cost, cov
+            w_rule, w_ai = 0.6, 0.4
+            new_suit = w_rule * suit + w_ai * scores.get('suitability', suit)
+            new_cost = w_rule * cost + w_ai * scores.get('cost', cost)
+            new_cov = w_rule * cov + w_ai * scores.get('coverage', cov)
+            # diversity jitter based on feature richness
+            richness = len(product.coverage_details) - len(product.exclusions)
+            jitter = max(-3, min(3, richness // 4))
+            new_suit += jitter * 0.5
+            new_cov += jitter * 0.5
+            # update progress proportionally for scoring stage (55→75)
+            if self.progress_cb and self.total_products:
+                try:
+                    pct = 55 + int(20 * (self.idx + 1) / self.total_products)
+                    self.progress_cb(pct, f"AI analyzer: scoring {product.provider} ({self.idx + 1}/{self.total_products})")
+                except Exception:
+                    pass
+            return float(max(0, min(100, round(new_suit, 1)))), float(max(0, min(100, round(new_cost, 1)))), float(max(0, min(100, round(new_cov, 1))))
+        except Exception:
+            return suit, cost, cov
     
     def _calculate_cost_score(self, product: InsuranceProduct,
                              normalized_data: dict) -> float:
@@ -498,21 +595,85 @@ class InsuranceQuoteEngine:
 # Main Processing Function
 # ================================
 
-def process_insurance_quote_request(request: QuoteRequest) -> Tuple[bool, List[InsuranceQuote], str]:
+def process_insurance_quote_request(request: QuoteRequest, progress_cb=None) -> Tuple[bool, List[InsuranceQuote], str]:
     """
     Process insurance quote request through AI engine
     Returns: (success, quotes, message)
     """
     try:
+        if progress_cb:
+            try:
+                progress_cb(10, 'Normalizing data')
+            except Exception:
+                pass
         engine = InsuranceQuoteEngine()
-        quotes = engine.process_quote_request(request)
-        
+        # Manual step-wise progress
+        normalized = engine._normalize_data(request)
+        if progress_cb:
+            try:
+                progress_cb(30, 'Assessing risk and safety')
+            except Exception:
+                pass
+        risk_score = engine._assess_risk(normalized)
+        if progress_cb:
+            try:
+                progress_cb(55, 'Applying eligibility rules')
+            except Exception:
+                pass
+        eligible = engine._filter_eligible_products(engine.products, normalized, risk_score)
+        engine.progress_cb = progress_cb
+        engine.total_products = max(1, len(eligible))
+        if progress_cb:
+            try:
+                progress_cb(56, 'Scoring plans')
+            except Exception:
+                pass
+        quotes = []
+        for i, product in enumerate(eligible):
+            engine.idx = i
+            quotes.append(engine._generate_quote(product, normalized, risk_score))
+        if progress_cb:
+            try:
+                progress_cb(75, 'Ranking plans')
+            except Exception:
+                pass
+        quotes.sort(key=lambda q: q.overall_score, reverse=True)
+
+        # Decide result set size (AI-assisted)
+        top_k = None
+        if normalized.get('use_ai_explainer'):
+            try:
+                if progress_cb:
+                    try:
+                        progress_cb(78, 'Selecting number of results')
+                    except Exception:
+                        pass
+                from ai_explainer import decide_top_k
+                top_k = decide_top_k(normalized, risk_score, len(quotes), progress_cb=progress_cb)
+            except Exception:
+                top_k = None
+        if top_k is None:
+            # Fallback heuristic
+            top_k = 10
+            if risk_score >= 70:
+                top_k = 6
+            elif risk_score >= 55:
+                top_k = 8
+            elif risk_score <= 35:
+                top_k = 12
+        quotes = quotes[:max(1, min(top_k, len(quotes)))]
+
         if not quotes:
             return False, [], "No suitable insurance products found for your profile. Please consult with a human advisor."
         
         # Update request status
         request.status = 'completed'
         request.quotes = quotes
+        if progress_cb:
+            try:
+                progress_cb(100, f"Completed — showing top {len(quotes)} plans")
+            except Exception:
+                pass
         
         return True, quotes, f"Successfully generated {len(quotes)} insurance quotes."
         

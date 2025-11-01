@@ -25,12 +25,15 @@
             <i class="bi bi-cash-coin"></i> <strong>Get Financial Assistance</strong>
         </a>
         
-        <a href="{{ url_for('insurance_compare', request_id=quote_request.request_id) }}" 
-           class="btn btn-success">
-            <i class="fas fa-exchange-alt"></i> Compare Quotes
-        </a>
+        <button class="btn btn-success" disabled title="Coming Soon: This feature will allow you to compare multiple insurance quotes side-by-side">
+            <i class="fas fa-exchange-alt"></i> Compare Quotes <small class="badge bg-light text-dark">Coming Soon</small>
+        </button>
         <a href="{{ url_for('export_insurance_pdf', request_id=quote_request.request_id) }}" 
            class="btn btn-danger">
+            <i class="fas fa-file-code"></i> Export as HTML
+        </a>
+        <a href="{{ url_for('export_insurance_real_pdf', request_id=quote_request.request_id) }}" 
+           class="btn btn-danger" style="background-color: #dc3545;">
             <i class="fas fa-file-pdf"></i> Export as PDF
         </a>
         <a href="{{ url_for('download_insurance_quotes', request_id=quote_request.request_id) }}" 
@@ -38,12 +41,9 @@
             <i class="fas fa-download"></i> Download JSON
         </a>
         {% if current_user.role == 'patient' %}
-        <form action="{{ url_for('share_with_doctor', request_id=quote_request.request_id) }}" method="POST" style="display: inline;">
-            <button type="submit" class="btn btn-info" {% if quote_request.shared_with_doctor %}disabled{% endif %}>
-                <i class="fas fa-user-md"></i> 
-                {% if quote_request.shared_with_doctor %}Shared with Doctor{% else %}Share with Doctor{% endif %}
-            </button>
-        </form>
+        <button class="btn btn-info" disabled title="Coming Soon: This feature will allow you to share your insurance quotes with your doctor for review">
+            <i class="fas fa-user-md"></i> Share with Doctor <small class="badge bg-light text-dark">Coming Soon</small>
+        </button>
         {% endif %}
         <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-secondary">
             <i class="fas fa-history"></i> View History
@@ -64,6 +64,17 @@
             <i class="bi bi-calculator"></i> Calculate Your Subsidies
         </a>
     </div>
+
+    {% if quote_request.use_ai_explainer %}
+    <div class="alert alert-info shadow-sm mb-4">
+        <i class="bi bi-robot"></i>
+        Quotes are <strong>ranked by AI-assisted analysis</strong> of your health profile (suitability, cost, and coverage).
+    </div>
+    {% else %}
+    <div class="alert alert-secondary shadow-sm mb-4">
+        Quotes are ranked by suitability, cost, and coverage.
+    </div>
+    {% endif %}
 
                     <!-- AI-Extracted Profile Summary (NEW!) -->
                     <div class="card border-info mb-4">
@@ -229,6 +240,9 @@
                                     <h4 class="mb-0">
                                         <span class="badge badge-primary">Rank #{{ loop.index }}</span>
                                         {{ quote.product.name }}
+                                        {% if quote_request.use_ai_explainer %}
+                                        <span class="badge bg-info text-dark ms-2">AI-ranked</span>
+                                        {% endif %}
                                     </h4>
                                     <small class="text-muted">{{ quote.product.provider }} | {{ quote.product.plan_type }} Plan</small>
                                 </div>
@@ -344,9 +358,15 @@
                     <i class="fas fa-star"></i> 
                     <span class="fav-text">{% if quote.product.product_id in quote_request.favorites %}Unfavorite{% else %}Add to Favorites{% endif %}</span>
                 </button>
-                <button class="btn btn-outline-secondary" onclick="alert('Contact provider feature coming soon!')">
+                {% if quote.product.product_link %}
+                <a href="{{ quote.product.product_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary">
+                    <i class="fas fa-external-link-alt"></i> Contact Provider
+                </a>
+                {% else %}
+                <button class="btn btn-outline-secondary" disabled title="Provider URL not available">
                     <i class="fas fa-phone"></i> Contact Provider
                 </button>
+                {% endif %}
             </div>
                         </div>
                     </div>

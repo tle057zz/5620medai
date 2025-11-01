@@ -5,7 +5,7 @@ Flask-WTF Forms for Clinical AI System
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, TextAreaField, IntegerField, FloatField, FieldList, FormField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, Optional, NumberRange
+from wtforms.validators import DataRequired, Email, Length, ValidationError, Optional, NumberRange, EqualTo, Regexp
 
 
 class LoginForm(FlaskForm):
@@ -186,4 +186,76 @@ class InsuranceQuoteForm(FlaskForm):
                                   validators=[DataRequired()])
     
     submit = SubmitField('Generate Insurance Quotes')
+
+
+class SignupForm(FlaskForm):
+    """User registration form"""
+    username = StringField('Username',
+                          validators=[
+                              DataRequired(),
+                              Length(min=3, max=50),
+                              Regexp(r'^[a-zA-Z0-9._-]+$', message='Username can only contain letters, numbers, dots, underscores, and hyphens')
+                          ],
+                          render_kw={'placeholder': 'Choose a username', 'autofocus': True})
+    
+    email = StringField('Email',
+                       validators=[DataRequired(), Email(), Length(max=100)],
+                       render_kw={'placeholder': 'your.email@example.com'})
+    
+    password = PasswordField('Password',
+                            validators=[
+                                DataRequired(),
+                                Length(min=8, message='Password must be at least 8 characters long')
+                            ],
+                            render_kw={'placeholder': 'Enter your password'})
+    
+    confirm_password = PasswordField('Confirm Password',
+                                    validators=[
+                                        DataRequired(),
+                                        EqualTo('password', message='Passwords must match')
+                                    ],
+                                    render_kw={'placeholder': 'Confirm your password'})
+    
+    name = StringField('Full Name',
+                      validators=[DataRequired(), Length(max=100)],
+                      render_kw={'placeholder': 'Enter your full name'})
+    
+    role = SelectField('Account Type',
+                      choices=[
+                          ('patient', 'Patient'),
+                          ('doctor', 'Doctor')
+                      ],
+                      validators=[DataRequired()])
+    
+    # Doctor-specific fields
+    specialization = StringField('Specialization',
+                               render_kw={'placeholder': 'e.g., Cardiology, General Practice'},
+                               validators=[Optional()])
+    
+    ahpra_number = StringField('AHPRA Provider/Registration Number',
+                             render_kw={'placeholder': 'Required for doctors'},
+                             validators=[Optional()])
+    
+    qualification = StringField('Qualification',
+                               render_kw={'placeholder': 'e.g., MBBS, MD, FRACP'},
+                               validators=[Optional()])
+    
+    clinic_address = TextAreaField('Clinic Address',
+                                  render_kw={'placeholder': 'Optional clinic address', 'rows': 2},
+                                  validators=[Optional()])
+    
+    terms_accepted = BooleanField('I accept the Terms and Conditions',
+                                validators=[DataRequired('You must accept the terms and conditions')])
+    
+    submit = SubmitField('Create Account')
+    
+    def validate_ahpra_number(self, field):
+        """Validate AHPRA number is provided if role is doctor"""
+        if self.role.data == 'doctor' and not field.data:
+            raise ValidationError('AHPRA Provider/Registration Number is required for doctor accounts.')
+    
+    def validate_specialization(self, field):
+        """Validate specialization is provided if role is doctor"""
+        if self.role.data == 'doctor' and not field.data:
+            raise ValidationError('Specialization is required for doctor accounts.')
 

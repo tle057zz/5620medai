@@ -71,7 +71,7 @@ class InsuranceProduct:
     """Insurance product definition"""
     def __init__(self, product_id, name, provider, plan_type, coverage_amount,
                  monthly_premium, annual_deductible, copay, coinsurance,
-                 max_out_of_pocket, coverage_details, exclusions):
+                 max_out_of_pocket, coverage_details, exclusions, product_link=None):
         self.product_id = product_id
         self.name = name
         self.provider = provider
@@ -84,6 +84,7 @@ class InsuranceProduct:
         self.max_out_of_pocket = max_out_of_pocket
         self.coverage_details = coverage_details
         self.exclusions = exclusions
+        self.product_link = product_link  # URL to provider website
         
     def to_dict(self):
         return {
@@ -98,7 +99,8 @@ class InsuranceProduct:
             'coinsurance': self.coinsurance,
             'max_out_of_pocket': self.max_out_of_pocket,
             'coverage_details': self.coverage_details,
-            'exclusions': self.exclusions
+            'exclusions': self.exclusions,
+            'product_link': self.product_link
         }
 
 
@@ -166,41 +168,41 @@ class QuoteRequest:
 def get_au_health_funds() -> List[Dict[str, str]]:
     """Return catalog of Australian health funds (open and restricted).
 
-    Fields: name, type (open|restricted), not_for_profit (bool), notes
+    Fields: name, type (open|restricted), not_for_profit (bool), notes, url
     """
     catalog: List[Dict[str, str]] = [
         # Open membership (anyone can join)
-        {"name": "Bupa Australia", "type": "open", "nfp": False, "notes": "Large national network"},
-        {"name": "Medibank Private", "type": "open", "nfp": False, "notes": "Owns ahm brand"},
-        {"name": "ahm (by Medibank)", "type": "open", "nfp": False, "notes": "Budget-focused"},
-        {"name": "HCF", "type": "open", "nfp": True, "notes": "Largest NFP; strong extras"},
-        {"name": "nib Health Funds", "type": "open", "nfp": False, "notes": "Popular with young singles"},
-        {"name": "HBF Health", "type": "open", "nfp": True, "notes": "WA based"},
-        {"name": "Australian Unity Health", "type": "open", "nfp": True, "notes": "Member-owned mutual"},
-        {"name": "GMHBA Health Insurance", "type": "open", "nfp": True, "notes": "Owns Frank and MyOwn"},
-        {"name": "Health Partners", "type": "open", "nfp": True, "notes": "SA based; dental & optical"},
-        {"name": "HIF", "type": "open", "nfp": True, "notes": "Flexible extras"},
-        {"name": "St Lukes Health", "type": "open", "nfp": True, "notes": "TAS based"},
-        {"name": "Latrobe Health Services", "type": "open", "nfp": True, "notes": "VIC based"},
-        {"name": "Westfund Health Insurance", "type": "open", "nfp": True, "notes": "Regional NSW & QLD"},
-        {"name": "Phoenix Health Fund", "type": "open", "nfp": True, "notes": "NSW; small member focus"},
-        {"name": "AIA Health Insurance", "type": "open", "nfp": False, "notes": "With Vitality rewards"},
-        {"name": "MyOwn Health Insurance", "type": "open", "nfp": False, "notes": "GMHBA & AIA"},
-        {"name": "Health Care Insurance (HCI)", "type": "open", "nfp": True, "notes": "TAS small fund"},
-        {"name": "Queensland Country Health", "type": "open", "nfp": True, "notes": "Regional QLD"},
-        {"name": "Mildura Health Fund", "type": "open", "nfp": True, "notes": "Regional VIC"},
-        {"name": "National Health Benefits Australia (onemedifund)", "type": "open", "nfp": True, "notes": "Online first"},
+        {"name": "Bupa Australia", "type": "open", "nfp": False, "notes": "Large national network", "url": "https://www.bupa.com.au"},
+        {"name": "Medibank Private", "type": "open", "nfp": False, "notes": "Owns ahm brand", "url": "https://www.medibank.com.au"},
+        {"name": "ahm (by Medibank)", "type": "open", "nfp": False, "notes": "Budget-focused", "url": "https://www.ahm.com.au"},
+        {"name": "HCF", "type": "open", "nfp": True, "notes": "Largest NFP; strong extras", "url": "https://www.hcf.com.au"},
+        {"name": "nib Health Funds", "type": "open", "nfp": False, "notes": "Popular with young singles", "url": "https://www.nib.com.au"},
+        {"name": "HBF Health", "type": "open", "nfp": True, "notes": "WA based", "url": "https://www.hbf.com.au"},
+        {"name": "Australian Unity Health", "type": "open", "nfp": True, "notes": "Member-owned mutual", "url": "https://www.australianunity.com.au/health-insurance"},
+        {"name": "GMHBA Health Insurance", "type": "open", "nfp": True, "notes": "Owns Frank and MyOwn", "url": "https://www.gmhba.com.au"},
+        {"name": "Health Partners", "type": "open", "nfp": True, "notes": "SA based; dental & optical", "url": "https://www.healthpartners.com.au"},
+        {"name": "HIF", "type": "open", "nfp": True, "notes": "Flexible extras", "url": "https://www.hif.com.au"},
+        {"name": "St Lukes Health", "type": "open", "nfp": True, "notes": "TAS based", "url": "https://www.stlukes.com.au"},
+        {"name": "Latrobe Health Services", "type": "open", "nfp": True, "notes": "VIC based", "url": "https://www.latrobehealth.com.au"},
+        {"name": "Westfund Health Insurance", "type": "open", "nfp": True, "notes": "Regional NSW & QLD", "url": "https://www.westfund.com.au"},
+        {"name": "Phoenix Health Fund", "type": "open", "nfp": True, "notes": "NSW; small member focus", "url": "https://www.phoenixhealthfund.com.au"},
+        {"name": "AIA Health Insurance", "type": "open", "nfp": False, "notes": "With Vitality rewards", "url": "https://www.aiahealth.com.au"},
+        {"name": "MyOwn Health Insurance", "type": "open", "nfp": False, "notes": "GMHBA & AIA", "url": "https://www.myownhealth.com.au"},
+        {"name": "Health Care Insurance (HCI)", "type": "open", "nfp": True, "notes": "TAS small fund", "url": "https://www.hciltd.com.au"},
+        {"name": "Queensland Country Health", "type": "open", "nfp": True, "notes": "Regional QLD", "url": "https://www.qldcountry.health"},
+        {"name": "Mildura Health Fund", "type": "open", "nfp": True, "notes": "Regional VIC", "url": "https://www.mildurahealthfund.com.au"},
+        {"name": "National Health Benefits Australia (onemedifund)", "type": "open", "nfp": True, "notes": "Online first", "url": "https://www.onemedifund.com.au"},
         # Restricted membership (eligibility required)
-        {"name": "Defence Health", "type": "restricted", "nfp": True, "notes": "ADF personnel & family"},
-        {"name": "Police Health", "type": "restricted", "nfp": True, "notes": "Police & families"},
-        {"name": "Teachers Health", "type": "restricted", "nfp": True, "notes": "Education sector; incl. UniHealth & NMH"},
-        {"name": "Navy Health", "type": "restricted", "nfp": True, "notes": "Defence sector"},
-        {"name": "Doctors' Health Fund", "type": "restricted", "nfp": True, "notes": "Medical professionals"},
-        {"name": "CBHS Health Fund", "type": "restricted", "nfp": True, "notes": "Commonwealth Bank group"},
-        {"name": "Reserve Bank Health Society", "type": "restricted", "nfp": True, "notes": "RBA & finance sector"},
-        {"name": "ACA Health Benefits Fund", "type": "restricted", "nfp": True, "notes": "Adventist community"},
-        {"name": "RT Health Fund", "type": "restricted", "nfp": True, "notes": "Transport workers; part of Police Health Group"},
-        {"name": "Transport Health / Union Health", "type": "restricted", "nfp": True, "notes": "Union/transport; QLD"},
+        {"name": "Defence Health", "type": "restricted", "nfp": True, "notes": "ADF personnel & family", "url": "https://www.defencehealth.com.au"},
+        {"name": "Police Health", "type": "restricted", "nfp": True, "notes": "Police & families", "url": "https://www.policehealth.com.au"},
+        {"name": "Teachers Health", "type": "restricted", "nfp": True, "notes": "Education sector; incl. UniHealth & NMH", "url": "https://www.teachershealth.com.au"},
+        {"name": "Navy Health", "type": "restricted", "nfp": True, "notes": "Defence sector", "url": "https://www.navyhealth.com.au"},
+        {"name": "Doctors' Health Fund", "type": "restricted", "nfp": True, "notes": "Medical professionals", "url": "https://www.doctorshealthfund.com.au"},
+        {"name": "CBHS Health Fund", "type": "restricted", "nfp": True, "notes": "Commonwealth Bank group", "url": "https://www.cbhs.com.au"},
+        {"name": "Reserve Bank Health Society", "type": "restricted", "nfp": True, "notes": "RBA & finance sector", "url": "https://www.rbhs.com.au"},
+        {"name": "ACA Health Benefits Fund", "type": "restricted", "nfp": True, "notes": "Adventist community", "url": "https://www.acahealth.com.au"},
+        {"name": "RT Health Fund", "type": "restricted", "nfp": True, "notes": "Transport workers; part of Police Health Group", "url": "https://www.rthealth.com.au"},
+        {"name": "Transport Health / Union Health", "type": "restricted", "nfp": True, "notes": "Union/transport; QLD", "url": "https://www.unionhealth.com.au"},
     ]
     return catalog
 
@@ -267,6 +269,7 @@ def get_au_insurance_products() -> List[InsuranceProduct]:
                 max_out_of_pocket=max_oop,
                 coverage_details=details + ['Chronic disease management' if is_nfp or is_restricted else 'Telemedicine services'],
                 exclusions=exclusions,
+                product_link=f.get("url"),  # URL from fund catalog
             )
         )
 

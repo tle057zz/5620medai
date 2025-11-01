@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Approvals - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="bi bi-shield-check"></i> Doctor Account Approvals</h2>
+                    <p class="text-muted">Review and approve pending doctor registrations</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            {% if not pending_doctors %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No pending doctor approvals at this time.
+            </div>
+            {% else %}
+            <div class="row">
+                {% for doctor in pending_doctors %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="bi bi-hourglass-split"></i> Pending Approval
+                                <span class="badge bg-secondary float-end">{{ loop.index }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ doctor.name }}</h6>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-envelope"></i> {{ doctor.email }}
+                            </p>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-person"></i> @{{ doctor.username }}
+                            </p>
+                            
+                            <hr>
+                            
+                            <div class="mb-2">
+                                <strong>Specialization:</strong><br>
+                                <span class="badge bg-primary">{{ doctor.specialization or 'N/A' }}</span>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <strong>AHPRA Number:</strong><br>
+                                <code>{{ doctor.ahpra_number or 'Not provided' }}</code>
+                            </div>
+                            
+                            {% if doctor.qualification %}
+                            <div class="mb-2">
+                                <strong>Qualification:</strong><br>
+                                {{ doctor.qualification }}
+                            </div>
+                            {% endif %}
+                            
+                            {% if doctor.clinic_address %}
+                            <div class="mb-2">
+                                <strong>Clinic Address:</strong><br>
+                                <small class="text-muted">{{ doctor.clinic_address }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> Registered: 
+                                    {{ doctor.created_at.strftime('%Y-%m-%d %H:%M') if doctor.created_at else 'N/A' }}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <form method="POST" action="{{ url_for('approve_doctor', doctor_user_id=doctor.id) }}" class="mb-2">
+                                <div class="mb-2">
+                                    <label for="approval_notes_{{ doctor.id }}" class="form-label small">Approval Notes (Optional):</label>
+                                    <textarea class="form-control form-control-sm" 
+                                              id="approval_notes_{{ doctor.id }}" 
+                                              name="approval_notes" 
+                                              rows="2" 
+                                              placeholder="Optional notes..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm w-100" 
+                                        onclick="return confirm('Approve this doctor account?')">
+                                    <i class="bi bi-check-circle"></i> Approve
+                                </button>
+                            </form>
+                            
+                            <button type="button" class="btn btn-danger btn-sm w-100" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#rejectModal{{ doctor.id }}">
+                                <i class="bi bi-x-circle"></i> Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reject Modal -->
+                <div class="modal fade" id="rejectModal{{ doctor.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-exclamation-triangle"></i> Reject Doctor Account
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('reject_doctor', doctor_user_id=doctor.id) }}">
+                                <div class="modal-body">
+                                    <p>Are you sure you want to reject <strong>{{ doctor.name }}</strong>'s doctor account?</p>
+                                    <div class="mb-3">
+                                        <label for="rejection_notes_{{ doctor.id }}" class="form-label">
+                                            Reason for Rejection <span class="text-danger">*</span>:
+                                        </label>
+                                        <textarea class="form-control" 
+                                                  id="rejection_notes_{{ doctor.id }}" 
+                                                  name="rejection_notes" 
+                                                  rows="4" 
+                                                  required
+                                                  placeholder="Please provide a reason for rejection..."></textarea>
+                                        <small class="form-text text-muted">This reason will be stored for audit purposes.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-x-circle"></i> Reject Account
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

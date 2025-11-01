@@ -205,23 +205,34 @@ def compare_quotes(quotes: List[InsuranceQuote]) -> Dict:
         'exclusion_comparison': []
     }
     
+    # Helper to ensure numeric value
+    def to_float(v):
+        if v is None:
+            return 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 0.0
+    
     # Extract data for comparison
     for quote in quotes:
         comparison['products'].append({
             'name': quote.product.name,
             'provider': quote.product.provider,
             'plan_type': quote.product.plan_type,
-            'product_id': quote.product.product_id
+            'product_id': getattr(quote.product, 'product_id', '')
         })
         
-        comparison['metrics']['monthly_premium']['values'].append(quote.product.monthly_premium)
-        comparison['metrics']['annual_deductible']['values'].append(quote.product.annual_deductible)
-        comparison['metrics']['max_out_of_pocket']['values'].append(quote.product.max_out_of_pocket)
-        comparison['metrics']['coverage_amount']['values'].append(quote.product.coverage_amount)
-        comparison['metrics']['suitability_score']['values'].append(quote.suitability_score)
-        comparison['metrics']['cost_score']['values'].append(quote.cost_score)
-        comparison['metrics']['coverage_score']['values'].append(quote.coverage_score)
-        comparison['metrics']['overall_score']['values'].append(quote.overall_score)
+        comparison['metrics']['monthly_premium']['values'].append(to_float(quote.product.monthly_premium))
+        comparison['metrics']['annual_deductible']['values'].append(to_float(quote.product.annual_deductible))
+        comparison['metrics']['max_out_of_pocket']['values'].append(to_float(quote.product.max_out_of_pocket))
+        comparison['metrics']['coverage_amount']['values'].append(to_float(quote.product.coverage_amount))
+        comparison['metrics']['suitability_score']['values'].append(to_float(quote.suitability_score))
+        comparison['metrics']['cost_score']['values'].append(to_float(quote.cost_score))
+        comparison['metrics']['coverage_score']['values'].append(to_float(quote.coverage_score))
+        comparison['metrics']['overall_score']['values'].append(to_float(quote.overall_score))
     
     # Find best values (lower is better for costs, higher for scores and coverage)
     comparison['metrics']['monthly_premium']['best_index'] = comparison['metrics']['monthly_premium']['values'].index(
@@ -252,23 +263,35 @@ def compare_quotes(quotes: List[InsuranceQuote]) -> Dict:
     # Compare coverage details
     all_coverages = set()
     for quote in quotes:
-        all_coverages.update(quote.product.coverage_details)
+        details = quote.product.coverage_details
+        if not isinstance(details, (list, tuple, set)):
+            details = list(details) if hasattr(details, '__iter__') else []
+        all_coverages.update(details)
     
     for coverage in sorted(all_coverages):
         coverage_row = {'name': coverage, 'covered_by': []}
         for quote in quotes:
-            coverage_row['covered_by'].append(coverage in quote.product.coverage_details)
+            details = quote.product.coverage_details
+            if not isinstance(details, (list, tuple, set)):
+                details = list(details) if hasattr(details, '__iter__') else []
+            coverage_row['covered_by'].append(coverage in details)
         comparison['coverage_comparison'].append(coverage_row)
     
     # Compare exclusions
     all_exclusions = set()
     for quote in quotes:
-        all_exclusions.update(quote.product.exclusions)
+        exclusions = quote.product.exclusions
+        if not isinstance(exclusions, (list, tuple, set)):
+            exclusions = list(exclusions) if hasattr(exclusions, '__iter__') else []
+        all_exclusions.update(exclusions)
     
     for exclusion in sorted(all_exclusions):
         exclusion_row = {'name': exclusion, 'excluded_by': []}
         for quote in quotes:
-            exclusion_row['excluded_by'].append(exclusion in quote.product.exclusions)
+            exclusions = quote.product.exclusions
+            if not isinstance(exclusions, (list, tuple, set)):
+                exclusions = list(exclusions) if hasattr(exclusions, '__iter__') else []
+            exclusion_row['excluded_by'].append(exclusion in exclusions)
         comparison['exclusion_comparison'].append(exclusion_row)
     
     return comparison

@@ -58,34 +58,57 @@ CREATE TABLE doctors (
     user_id             BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     specialization      TEXT,
     license_number      TEXT,
+    ahpra_number        TEXT,              -- AHPRA Provider/Registration Number
     qualification       TEXT,
     clinic_address      TEXT,
     digital_signature_ref TEXT,
-    availability_status doctor_availability NOT NULL DEFAULT 'Offline'
+    availability_status doctor_availability NOT NULL DEFAULT 'Offline',
+    approval_status     TEXT NOT NULL DEFAULT 'Pending', -- 'Pending', 'Approved', 'Rejected'
+    approval_notes      TEXT,              -- Admin notes when approving/rejecting
+    approved_by          BIGINT REFERENCES users(id) ON DELETE SET NULL, -- Admin who approved/rejected
+    approved_at          TIMESTAMPTZ,       -- When approval/rejection happened
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- =====================
 -- INSURANCE PRODUCTS & QUOTES
 -- =====================
 CREATE TABLE insurance_products (
-    id              BIGSERIAL PRIMARY KEY,
-    name            TEXT NOT NULL,
-    coverage        TEXT,
-    premium         NUMERIC(12,2) NOT NULL CHECK (premium >= 0),
-    provider        TEXT NOT NULL,
-    product_link    TEXT,
-    insurance_type  TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id                  BIGSERIAL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    provider            TEXT NOT NULL,
+    product_link        TEXT,            -- URL to the provider's website (e.g., https://www.bupa.com.au)
+    insurance_type      TEXT,
+    -- legacy/basic fields
+    coverage            TEXT,
+    premium             NUMERIC(12,2) CHECK (premium IS NULL OR premium >= 0),
+    -- model-aligned fields (nullable for backward compatibility)
+    plan_type           TEXT,
+    monthly_premium     NUMERIC(12,2) CHECK (monthly_premium IS NULL OR monthly_premium >= 0),
+    coverage_amount     NUMERIC(14,2) CHECK (coverage_amount IS NULL OR coverage_amount >= 0),
+    annual_deductible   NUMERIC(12,2) CHECK (annual_deductible IS NULL OR annual_deductible >= 0),
+    copay               NUMERIC(12,2) CHECK (copay IS NULL OR copay >= 0),
+    coinsurance         NUMERIC(12,2) CHECK (coinsurance IS NULL OR coinsurance >= 0),
+    max_out_of_pocket   NUMERIC(12,2) CHECK (max_out_of_pocket IS NULL OR max_out_of_pocket >= 0),
+    coverage_details    JSONB,
+    exclusions          JSONB,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE quotes (
-    id                  BIGSERIAL PRIMARY KEY,
-    suitability_score   INT NOT NULL CHECK (suitability_score BETWEEN 0 AND 100),
-    cost                NUMERIC(12,2) NOT NULL CHECK (cost >= 0),
-    coverage_summary    TEXT,
+    id                   BIGSERIAL PRIMARY KEY,
+    suitability_score    INT NOT NULL CHECK (suitability_score BETWEEN 0 AND 100),
+    -- legacy numeric cost; may be NULL if score-based is used only
+    cost                 NUMERIC(12,2) CHECK (cost IS NULL OR cost >= 0),
+    -- model-aligned score fields
+    cost_score           INT CHECK (cost_score IS NULL OR (cost_score BETWEEN 0 AND 100)),
+    coverage_score       INT CHECK (coverage_score IS NULL OR (coverage_score BETWEEN 0 AND 100)),
+    overall_score        INT CHECK (overall_score IS NULL OR (overall_score BETWEEN 0 AND 100)),
+    coverage_summary     TEXT,
+    rationale            TEXT,
     insurance_product_id BIGINT NOT NULL REFERENCES insurance_products(id) ON DELETE RESTRICT,
-    patient_id          BIGINT NOT NULL REFERENCES patients(user_id) ON DELETE CASCADE,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    patient_id           BIGINT NOT NULL REFERENCES patients(user_id) ON DELETE CASCADE,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_quotes_patient ON quotes(patient_id);
@@ -112,6 +135,8 @@ CREATE TABLE health_data (
     height_cm       NUMERIC(6,2),
     bp_systolic     INT,
     bp_diastolic    INT,
+    smoking_status  TEXT,            -- 'Never', 'Former', 'Current', 'Smoker', etc.
+    alcohol_consumption TEXT,        -- 'None', 'Rarely', 'Occasionally', 'Regularly', etc.
     measure_date    DATE NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -232,6 +257,7 @@ CREATE TABLE medical_records (
     patient_id      BIGINT NOT NULL REFERENCES patients(user_id) ON DELETE CASCADE,
     pages           INT CHECK (pages >= 0),
     size_mb         NUMERIC(10,3) CHECK (size_mb >= 0),
+    document_type   TEXT,  -- 'medical_report', 'lab_results', 'imaging_report', 'prescription', 'discharge_summary', 'pathology', 'consultation', 'other'
     uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status          medical_record_status NOT NULL DEFAULT 'Uploaded'
 );
@@ -252,6 +278,7 @@ CREATE TABLE explanations (
     summary_md      TEXT,
     pathway_md      TEXT,
     risks_md        TEXT,
+    mistral_analysis TEXT,  -- AI analysis from mistral:7b-instruct LLM
     low_confidence  BOOLEAN NOT NULL DEFAULT FALSE,
     generated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

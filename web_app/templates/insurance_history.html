@@ -12,7 +12,7 @@
                     <p class="mb-0">View all your past insurance quote requests</p>
                 </div>
                 <div class="card-body">
-                    {% if requests %}
+                    {% if rds_history %}
                     <div class="mb-3">
                         <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Request New Quote
@@ -24,11 +24,69 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th>Request ID</th>
-                                    <th>Date Submitted</th>
+                                    <th class="d-none d-md-table-cell">Date Submitted</th>
                                     <th>Status</th>
-                                    <th>Quotes Found</th>
-                                    <th>Income</th>
-                                    <th>Health Conditions</th>
+                                    <th class="d-none d-lg-table-cell">Quotes Found</th>
+                                    <th class="d-none d-md-table-cell">Income</th>
+                                    <th class="d-none d-lg-table-cell">Health Conditions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in rds_history %}
+                                <tr>
+                                    <td><code>{{ r.display_request_id }}</code></td>
+                                    <td class="d-none d-md-table-cell">{{ r.submitted.strftime('%Y-%m-%d %H:%M') if r.submitted else '-' }}</td>
+                                    <td>
+                                        {% if r.status and r.status.lower() == 'completed' %}
+                                        <span class="badge bg-success text-white">Completed</span>
+                                        {% elif r.status and r.status.lower() == 'inreview' %}
+                                        <span class="badge bg-warning text-dark">In Review</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary text-white">{{ r.status|title if r.status else 'Unknown' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="d-none d-lg-table-cell"><span class="badge bg-primary text-white">{{ r.quotes_found }} quotes</span></td>
+                                    <td class="d-none d-md-table-cell">${{ "{:,.0f}".format(r.income) if r.income else '-' }}</td>
+                                    <td class="d-none d-lg-table-cell">{{ r.conditions_count or 0 }} conditions</td>
+                                    <td>
+                                        <div class="d-flex flex-column flex-md-row gap-1">
+                                            {% if r.display_request_id and r.display_request_id.startswith('REQ-') %}
+                                            <a href="{{ url_for('view_insurance_quotes', request_id=r.display_request_id) }}" class="btn btn-primary btn-sm w-100 w-md-auto">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-secondary w-100 w-md-auto" disabled title="Not viewable (no REQ id)">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            {% endif %}
+                                            <form method="post" action="{{ url_for('delete_rds_quote_request', rds_request_id=r.rds_request_id) }}" style="display:inline;" onsubmit="return confirm('Delete this request from AWS?');">
+                                                <button class="btn btn-danger btn-sm w-100 w-md-auto" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% elif requests %}
+                    <div class="mb-3">
+                        <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Request New Quote
+                        </a>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th class="d-none d-md-table-cell">Date Submitted</th>
+                                    <th>Status</th>
+                                    <th class="d-none d-lg-table-cell">Quotes Found</th>
+                                    <th class="d-none d-md-table-cell">Income</th>
+                                    <th class="d-none d-lg-table-cell">Health Conditions</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -36,27 +94,27 @@
                                 {% for req in requests %}
                                 <tr>
                                     <td><code>{{ req.request_id }}</code></td>
-                                    <td>{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td class="d-none d-md-table-cell">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td>
                                         {% if req.status == 'completed' %}
-                                        <span class="badge badge-success">Completed</span>
+                                        <span class="badge bg-success text-white">Completed</span>
                                         {% elif req.status == 'processing' %}
-                                        <span class="badge badge-warning">Processing</span>
+                                        <span class="badge bg-warning text-dark">Processing</span>
                                         {% elif req.status == 'failed' %}
-                                        <span class="badge badge-danger">Failed</span>
+                                        <span class="badge bg-danger text-white">Failed</span>
                                         {% else %}
-                                        <span class="badge badge-secondary">{{ req.status|title }}</span>
+                                        <span class="badge bg-secondary text-white">{{ req.status|title }}</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="d-none d-lg-table-cell">
                                         {% if req.quotes %}
-                                        <span class="badge badge-primary">{{ req.quotes|length }} quotes</span>
+                                        <span class="badge bg-primary text-white">{{ req.quotes|length }} quotes</span>
                                         {% else %}
                                         <span class="text-muted">No quotes</span>
                                         {% endif %}
                                     </td>
-                                    <td>${{ "{:,}".format(req.income_details.annual_income) }}</td>
-                                    <td>
+                                    <td class="d-none d-md-table-cell">${{ "{:,}".format(req.income_details.annual_income) }}</td>
+                                    <td class="d-none d-lg-table-cell">
                                         {% if req.health_data.conditions %}
                                         {{ req.health_data.conditions|length }} conditions
                                         {% else %}
@@ -64,21 +122,26 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if req.quotes %}
-                                        <a href="{{ url_for('view_insurance_quotes', request_id=req.request_id) }}" 
-                                           class="btn btn-sm btn-primary">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
-                                        {% else %}
-                                        <a href="{{ url_for('insurance_no_results', request_id=req.request_id) }}" 
-                                           class="btn btn-sm btn-secondary">
-                                            <i class="fas fa-info-circle"></i> Details
-                                        </a>
-                                        {% endif %}
-                                        <a href="{{ url_for('download_insurance_quotes', request_id=req.request_id) }}" 
-                                           class="btn btn-sm btn-outline-secondary" download>
-                                            <i class="fas fa-download"></i>
-                                        </a>
+                                        <div class="d-flex flex-column flex-md-row gap-1">
+                                            {% if req.quotes %}
+                                            <a href="{{ url_for('view_insurance_quotes', request_id=req.request_id) }}" 
+                                                class="btn btn-primary btn-sm w-100 w-md-auto">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% else %}
+                                            <a href="{{ url_for('insurance_no_results', request_id=req.request_id) }}" 
+                                               class="btn btn-sm btn-secondary w-100 w-md-auto">
+                                                <i class="fas fa-info-circle"></i> Details
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ url_for('download_insurance_quotes', request_id=req.request_id) }}" 
+                                                class="btn btn-outline-secondary btn-sm d-none d-md-inline-block" download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <form method="post" action="{{ url_for('delete_local_quote_request', request_id=req.request_id) }}" style="display:inline;" onsubmit="return confirm('Delete this local request?');">
+                                                <button class="btn btn-danger btn-sm w-100 w-md-auto" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -107,11 +170,73 @@
     cursor: pointer;
 }
 
+/* Ensure table content is readable with dark text */
+.table thead th {
+    color: #212529 !important; /* Bootstrap dark gray for headers */
+    font-weight: 600;
+}
+
+.table tbody td {
+    color: #212529 !important; /* Bootstrap dark gray for content */
+}
+
+.table tbody td code {
+    color: #e83e8c !important;
+}
+
+.table tbody td .text-muted {
+    color: #6c757d !important; /* Bootstrap muted color */
+}
+
+/* Ensure badges have readable text */
+.table .badge.bg-success,
+.table .badge.bg-primary,
+.table .badge.bg-danger,
+.table .badge.bg-secondary {
+    color: #fff !important; /* White text on dark colored badges */
+}
+
+.table .badge.bg-warning {
+    color: #212529 !important; /* Dark text on yellow warning badges */
+}
+
+/* Force dark text for all table cells */
+.table td,
+.table th {
+    color: #212529 !important;
+}
+
 code {
     background-color: #f8f9fa;
     padding: 2px 6px;
     border-radius: 3px;
     color: #e83e8c;
+}
+
+/* Mobile-responsive actions */
+@media (max-width: 767.98px) {
+    .d-flex.flex-column .btn {
+        min-height: 44px;
+        width: 100%;
+        margin-bottom: 0.25rem;
+    }
+    .d-flex.flex-column .btn:last-child {
+        margin-bottom: 0;
+    }
+    .table td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+/* Ensure gap works if Bootstrap version doesn't support it */
+.d-flex.gap-1 > * + * {
+    margin-left: 0.25rem;
+}
+@media (max-width: 767.98px) {
+    .d-flex.flex-column.gap-1 > * + * {
+        margin-left: 0;
+        margin-top: 0.25rem;
+    }
 }
 </style>
 {% endblock %}

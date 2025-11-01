@@ -34,7 +34,13 @@
                     <div class="col-md-6">
                         <p><strong>Medical Record Number:</strong> {{ user.medical_record_number }}</p>
                         <p><strong>Account Status:</strong> <span class="badge bg-success">Active</span></p>
-                        <p><strong>Last Visit:</strong> January 15, 2025</p>
+                        <p><strong>Last Visit:</strong> 
+                            {% if rds and rds.last_visit %}
+                                {{ rds.last_visit.strftime('%B %d, %Y') }}
+                            {% else %}
+                                No visits yet
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -48,7 +54,7 @@
         <div class="card border-primary">
             <div class="card-body text-center">
                 <i class="bi bi-file-earmark-medical display-4 text-primary"></i>
-                <h3 class="mt-2">8</h3>
+                <h3 class="mt-2">{{ rds.stats.medical_reports if rds and rds.stats else 0 }}</h3>
                 <p class="text-muted mb-0">Medical Reports</p>
             </div>
         </div>
@@ -57,7 +63,7 @@
         <div class="card border-success">
             <div class="card-body text-center">
                 <i class="bi bi-capsule display-4 text-success"></i>
-                <h3 class="mt-2">3</h3>
+                <h3 class="mt-2">{{ rds.stats.active_medications if rds and rds.stats else 0 }}</h3>
                 <p class="text-muted mb-0">Active Medications</p>
             </div>
         </div>
@@ -66,7 +72,7 @@
         <div class="card border-warning">
             <div class="card-body text-center">
                 <i class="bi bi-calendar-check display-4 text-warning"></i>
-                <h3 class="mt-2">2</h3>
+                <h3 class="mt-2">{{ rds.stats.upcoming_appointments if rds and rds.stats else 0 }}</h3>
                 <p class="text-muted mb-0">Upcoming Appointments</p>
             </div>
         </div>
@@ -75,7 +81,7 @@
         <div class="card border-info">
             <div class="card-body text-center">
                 <i class="bi bi-shield-check display-4 text-info"></i>
-                <h3 class="mt-2">0</h3>
+                <h3 class="mt-2">{{ rds.stats.insurance_quotes if rds and rds.stats else 0 }}</h3>
                 <p class="text-muted mb-0">Insurance Quotes</p>
             </div>
         </div>
@@ -84,38 +90,37 @@
 
 <!-- AI Features Row -->
 <div class="row g-4 mb-4">
-    <!-- Financial Assistance (NEW - Venkatesh) -->
+    <!-- Insurance Quote Service (First) -->
     <div class="col-md-6">
-        <div class="card shadow-sm border-warning h-100">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Financial Assistance (NEW)</h5>
+        <div class="card shadow-sm border-info h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Insurance Quote Service</h5>
             </div>
             <div class="card-body">
-                <h5>Subsidy Eligibility & Assistance</h5>
+                <h5>Get Personalized Insurance Quotes</h5>
                 <p class="text-muted">
-                    Check your eligibility for government subsidies, payment plans, and financial 
-                    assistance programs to help with insurance premiums.
+                    Our AI-powered system analyzes your health data, medical history, and income details 
+                    to match you with the most suitable insurance products.
                 </p>
                 <ul class="mb-3 small">
-                    <li>Medicare & Health Care Card benefits (15-30% off)</li>
-                    <li>Pensioner & student discounts</li>
-                    <li>Family size assistance</li>
-                    <li>Payment plans & low-interest loans</li>
-                    <li>Charity care programs</li>
+                    <li>AI-driven risk assessment and product matching</li>
+                    <li>Personalized quotes ranked by suitability</li>
+                    <li>Compare coverage, costs, and benefits</li>
+                    <li>Download and share quotes with doctors</li>
                 </ul>
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('request_financial_assistance') }}" class="btn btn-warning">
-                        <i class="bi bi-calculator"></i> Calculate Subsidies
+                    <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-info">
+                        <i class="bi bi-plus-circle"></i> Request Quote
                     </a>
-                </div>
-                <div class="alert alert-info mt-3 mb-0 small">
-                    <i class="bi bi-info-circle-fill"></i> You may qualify for significant premium reductions!
+                    <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-outline-info">
+                        <i class="bi bi-clock-history"></i> View History
+                    </a>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Clinical Record Analysis (Saahir Khan) -->
+    <!-- Clinical Record Analysis (Second) -->
     <div class="col-md-6">
         <div class="card shadow-sm border-primary h-100">
             <div class="card-header bg-primary text-white">
@@ -145,101 +150,32 @@
         </div>
     </div>
     
-    <!-- Insurance Quote Service -->
+    <!-- Financial Assistance (NEW - Venkatesh) (Third) -->
     <div class="col-md-6">
-        <div class="card shadow-sm border-info h-100">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Insurance Quote Service</h5>
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Financial Assistance (NEW)</h5>
             </div>
             <div class="card-body">
-                <h5>Get Personalized Insurance Quotes</h5>
+                <h5>Subsidy Eligibility & Assistance</h5>
                 <p class="text-muted">
-                    Our AI-powered system analyzes your health data, medical history, and income details 
-                    to match you with the most suitable insurance products.
+                    Check your eligibility for government subsidies, payment plans, and financial 
+                    assistance programs to help with insurance premiums.
                 </p>
                 <ul class="mb-3 small">
-                    <li>AI-driven risk assessment and product matching</li>
-                    <li>Personalized quotes ranked by suitability</li>
-                    <li>Compare coverage, costs, and benefits</li>
-                    <li>Download and share quotes with doctors</li>
+                    <li>Medicare & Health Care Card benefits (15-30% off)</li>
+                    <li>Pensioner & student discounts</li>
+                    <li>Family size assistance</li>
+                    <li>Payment plans & low-interest loans</li>
+                    <li>Charity care programs</li>
                 </ul>
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('request_insurance_quote') }}" class="btn btn-info">
-                        <i class="bi bi-plus-circle"></i> Request Quote
-                    </a>
-                    <a href="{{ url_for('insurance_quote_history') }}" class="btn btn-outline-info">
-                        <i class="bi bi-clock-history"></i> View History
+                    <a href="{{ url_for('request_financial_assistance') }}" class="btn btn-warning">
+                        <i class="bi bi-calculator"></i> Calculate Subsidies
                     </a>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Medical Records -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Recent Medical Records</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Document Type</th>
-                                <th>Doctor</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Jan 15, 2025</td>
-                                <td><i class="bi bi-file-earmark-text"></i> Medical Report</td>
-                                <td>Dr. Sarah Smith</td>
-                                <td><span class="badge bg-success">Processed</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Jan 10, 2025</td>
-                                <td><i class="bi bi-heart-pulse"></i> Lab Results</td>
-                                <td>Dr. Michael Jones</td>
-                                <td><span class="badge bg-success">Processed</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Dec 28, 2024</td>
-                                <td><i class="bi bi-camera"></i> Imaging Report</td>
-                                <td>Dr. Lisa Chen</td>
-                                <td><span class="badge bg-success">Processed</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="bi bi-info-circle-fill"></i> You may qualify for significant premium reductions!
                 </div>
             </div>
         </div>
@@ -254,20 +190,27 @@
                 <h5 class="mb-0"><i class="bi bi-capsule"></i> Current Medications</h5>
             </div>
             <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <strong>Atorvastatin</strong> - 20mg daily
-                        <br><small class="text-muted">For cholesterol management</small>
-                    </li>
-                    <li class="list-group-item">
-                        <strong>Metformin</strong> - 500mg twice daily
-                        <br><small class="text-muted">For type 2 diabetes</small>
-                    </li>
-                    <li class="list-group-item">
-                        <strong>Aspirin</strong> - 81mg daily
-                        <br><small class="text-muted">For cardiovascular protection</small>
-                    </li>
-                </ul>
+                {% if rds and rds.medications and rds.medications|length > 0 %}
+                    <ul class="list-group list-group-flush">
+                        {% for medication in rds.medications %}
+                        <li class="list-group-item">
+                            <strong>{{ medication.get('name', medication) }}</strong>
+                            <br><small class="text-muted">
+                                Recorded: 
+                                {% if medication.get('recorded_at') %}
+                                    {{ medication.get('recorded_at').strftime('%b %d, %Y at %I:%M %p') }}
+                                {% else %}
+                                    Unknown date
+                                {% endif %}
+                            </small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-info-circle"></i> No medications recorded yet.
+                    </p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -278,17 +221,27 @@
                 <h5 class="mb-0"><i class="bi bi-heart-pulse"></i> Health Conditions</h5>
             </div>
             <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <span class="badge bg-danger">Active</span> Hypertension
-                    </li>
-                    <li class="list-group-item">
-                        <span class="badge bg-danger">Active</span> Type 2 Diabetes
-                    </li>
-                    <li class="list-group-item">
-                        <span class="badge bg-warning">Monitoring</span> High Cholesterol
-                    </li>
-                </ul>
+                {% if rds and rds.conditions and rds.conditions|length > 0 %}
+                    <ul class="list-group list-group-flush">
+                        {% for condition in rds.conditions %}
+                        <li class="list-group-item">
+                            <span class="badge bg-danger">Active</span> {{ condition.get('name', condition) }}
+                            <br><small class="text-muted">
+                                Recorded: 
+                                {% if condition.get('recorded_at') %}
+                                    {{ condition.get('recorded_at').strftime('%b %d, %Y at %I:%M %p') }}
+                                {% else %}
+                                    Unknown date
+                                {% endif %}
+                            </small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-info-circle"></i> No health conditions recorded yet.
+                    </p>
+                {% endif %}
             </div>
         </div>
     </div>

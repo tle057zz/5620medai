@@ -19,7 +19,7 @@ from db_auth import (
     verify_password as db_verify_password,
     split_name_for_display as db_split_name,
 )
-from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm
+from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm, SignupForm
 from insurance_models import (
     QuoteRequest, HealthData, MedicalHistory, IncomeDetails,
     save_quote_request, get_quote_request, get_user_quote_requests
@@ -51,7 +51,24 @@ from rds_repository import (
     get_doctor_dashboard,
     get_admin_overview,
     list_users_admin,
+    get_quote_history_for_patient,
+    get_patient_action_history,
+    get_quote_request_full_for_token,
+    create_user,
+    get_pending_doctors,
+    get_admin_dashboard_stats,
+    update_doctor_approval,
+    get_doctor_approval_status,
+    get_patient_recent_medical_records,
+    save_medical_record_to_rds,
 )
+try:
+    from aws_persistence import save_quotes_to_rds
+except Exception:
+    save_quotes_to_rds = None
+
+# In-memory progress tracker for simple background processing
+PROGRESS: dict = {}
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -77,6 +94,57 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # Initialize database
 from database_config import init_database
 db = init_database(app)
+
+
+# Helper: adapt an RDS package (from get_quote_request_full_for_token) to in-memory-like objects
+def _adapt_pkg_to_objects(pkg, user_id, request_id):
+    from types import SimpleNamespace as _NS
+    req_obj = _NS(
+        request_id=request_id,
+        user_id=user_id,
+        created_at=pkg['request']['request_time'],
+        status=str(pkg['request']['status']).lower(),
+        use_ai_explainer=True,
+        health_data=_NS(conditions=pkg['request'].get('conditions') or [], medications=[]),
+        medical_history=_NS(past_conditions=pkg['request'].get('conditions') or [], surgeries=[], hospitalizations=[], family_history=[]),
+        income_details=_NS(annual_income=pkg['request'].get('income') or 0, employment_status='Employed', occupation=''),
+        quotes=[],
+    )
+    quotes = []
+    for q in pkg['quotes']:
+        prod = q['product']
+        # Use quote_id as product_id for RDS quotes so we can match them uniquely
+        quote_id = q.get('quote_id') or prod.get('quote_id')
+        product_id_str = f"RDS-{quote_id}" if quote_id else 'RDS'
+        product_obj = _NS(
+            product_id=product_id_str,
+            name=prod.get('name'),
+            provider=prod.get('provider'),
+            plan_type=prod.get('plan_type'),
+            coverage_amount=prod.get('coverage_amount') or 0,
+            monthly_premium=prod.get('monthly_premium') or 0,
+            annual_deductible=prod.get('annual_deductible') or 0,
+            copay=0,
+            coinsurance=0,
+            max_out_of_pocket=prod.get('max_out_of_pocket') or 0,
+            coverage_details=list(prod.get('coverage_details') or []),
+            exclusions=list(prod.get('exclusions') or []),
+            product_link=prod.get('product_link') or None,
+        )
+        overall = q.get('overall_score')
+        if overall is None:
+            parts = [p for p in [q.get('suitability_score'), q.get('cost_score'), q.get('coverage_score')] if p is not None]
+            overall = int(sum(parts) / len(parts)) if parts else 0
+        quote_obj = _NS(
+            product=product_obj,
+            suitability_score=q.get('suitability_score') or 0,
+            cost_score=q.get('cost_score') or 0,
+            coverage_score=q.get('coverage_score') or 0,
+            overall_score=overall,
+            rationale=q.get('rationale') or '',
+        )
+        quotes.append(quote_obj)
+    return req_obj, quotes
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -181,27 +249,51 @@ def login():
         if use_db_login:
             try:
                 row = db_fetch_user(username)
-                if row and db_verify_password(row.get('password_hash') or '', password):
-                    first_name, last_name = db_split_name(row.get('display_name'), row['username'])
-                    mapped = User(
-                        id=row['id'],
-                        username=row['username'],
-                        email=row.get('email') or f"{row['username']}@example.com",
-                        password_hash=generate_password_hash(password),
-                        role=row.get('role') or 'patient',
-                        first_name=first_name,
-                        last_name=last_name,
-                    )
-                    session.permanent = True
-                    remember_flag = getattr(form, 'remember_me', None)
-                    remember_val = bool(remember_flag.data) if remember_flag is not None else True
-                    login_user(mapped, remember=remember_val)
-                    print(f"✓ DB user logged in: {mapped.username} ({mapped.role})")
-                    flash(f'Welcome back, {mapped.get_display_name()}!', 'success')
-                    next_page = request.args.get('next')
-                    return redirect(next_page or url_for('dashboard'))
+                if row:
+                    stored_hash = row.get('password_hash') or ''
+                    print(f"[DB-LOGIN] User found: {username}, hash exists: {bool(stored_hash)}, hash prefix: {stored_hash[:20] if stored_hash else 'N/A'}")
+                    if db_verify_password(stored_hash, password):
+                        # Check doctor approval status
+                        role = row.get('role') or 'patient'
+                        if role == 'doctor':
+                            approval_status = get_doctor_approval_status(int(row['id']))
+                            print(f"[DB-LOGIN] Doctor approval status: {approval_status}")
+                            if approval_status == 'Pending':
+                                flash('Your doctor account is pending admin approval. You will be able to log in once an administrator approves your account.', 'warning')
+                                return render_template('login.html', form=form)
+                            elif approval_status == 'Rejected':
+                                flash('Your doctor account has been rejected. Please contact support for more information.', 'danger')
+                                return render_template('login.html', form=form)
+                            elif approval_status != 'Approved':
+                                flash('Your doctor account is pending approval. Please wait for admin approval.', 'warning')
+                                return render_template('login.html', form=form)
+                        
+                        first_name, last_name = db_split_name(row.get('display_name'), row['username'])
+                        mapped = User(
+                            id=row['id'],
+                            username=row['username'],
+                            email=row.get('email') or f"{row['username']}@example.com",
+                            password_hash=stored_hash,  # Use stored hash, don't regenerate
+                            role=role,
+                            first_name=first_name,
+                            last_name=last_name,
+                        )
+                        session.permanent = True
+                        remember_flag = getattr(form, 'remember_me', None)
+                        remember_val = bool(remember_flag.data) if remember_flag is not None else True
+                        login_user(mapped, remember=remember_val)
+                        print(f"✓ DB user logged in: {mapped.username} ({mapped.role})")
+                        flash(f'Welcome back, {mapped.get_display_name()}!', 'success')
+                        next_page = request.args.get('next')
+                        return redirect(next_page or url_for('dashboard'))
+                    else:
+                        print(f"[DB-LOGIN] Password verification failed for {username}")
+                else:
+                    print(f"[DB-LOGIN] User not found: {username}")
             except Exception as e:
+                import traceback
                 print(f"[DB-LOGIN] error: {e}")
+                print(traceback.format_exc())
 
         # Fallback to demo accounts for non-admins
         if demo_candidate and demo_candidate.check_password(password):
@@ -233,6 +325,175 @@ def logout():
     flash(f'You have been logged out successfully.', 'info')
     print(f"✓ User logged out: {username}")
     return redirect(url_for('login'))
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    """User registration/signup page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    form = SignupForm()
+    if form.validate_on_submit():
+        username = form.username.data.strip()
+        email = form.email.data.strip().lower()
+        password = form.password.data
+        name = form.name.data.strip()
+        role = form.role.data
+        
+        # Validate doctor-specific fields
+        if role == 'doctor':
+            if not form.ahpra_number.data or not form.ahpra_number.data.strip():
+                flash('AHPRA Provider/Registration Number is required for doctor accounts.', 'danger')
+                return render_template('signup.html', form=form)
+            if not form.specialization.data or not form.specialization.data.strip():
+                flash('Specialization is required for doctor accounts.', 'danger')
+                return render_template('signup.html', form=form)
+        
+        # Hash password
+        password_hash = generate_password_hash(password)
+        
+        # Create user in database
+        try:
+            result = create_user(
+                username=username,
+                email=email,
+                password_hash=password_hash,
+                name=name,
+                role=role,
+                specialization=form.specialization.data.strip() if role == 'doctor' and form.specialization.data else None,
+                ahpra_number=form.ahpra_number.data.strip() if role == 'doctor' and form.ahpra_number.data else None,
+                qualification=form.qualification.data.strip() if role == 'doctor' and form.qualification.data else None,
+                clinic_address=form.clinic_address.data.strip() if role == 'doctor' and form.clinic_address.data else None,
+            )
+            
+            if result['success']:
+                if role == 'doctor':
+                    flash('Account created successfully! Your doctor account is pending admin approval. You will receive an email once your account is approved.', 'info')
+                else:
+                    flash('Account created successfully! You can now log in.', 'success')
+                print(f"✓ New {role} account created: {username} (user_id: {result.get('user_id')})")
+                return redirect(url_for('login'))
+            else:
+                flash(result.get('message', 'Error creating account. Please try again.'), 'danger')
+        except Exception as e:
+            print(f"[SIGNUP] Error: {e}")
+            flash('An error occurred while creating your account. Please try again.', 'danger')
+    
+    return render_template('signup.html', form=form)
+
+
+@app.route('/admin/doctor-approvals')
+@login_required
+@role_required('admin')
+def admin_doctor_approvals():
+    """Admin page to view and approve/reject pending doctor accounts"""
+    try:
+        pending_doctors = get_pending_doctors()
+        return render_template('admin_doctor_approvals.html', pending_doctors=pending_doctors)
+    except Exception as e:
+        print(f"[ADMIN-APPROVALS] Error: {e}")
+        flash('Error loading pending doctors. Please try again.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/approve-doctor/<int:doctor_user_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def approve_doctor(doctor_user_id):
+    """Approve a doctor account"""
+    approval_notes = request.form.get('approval_notes', '').strip()
+    approval_status = 'Approved'
+    
+    try:
+        # Get admin's numeric user ID from database if they have one
+        # If admin is using a demo account (string ID), approved_by will be NULL
+        admin_user_id = None
+        if current_user.id:
+            try:
+                # Try to convert to int if it's already numeric
+                admin_user_id = int(current_user.id)
+            except (ValueError, TypeError):
+                # If it's a string ID (like 'adm_001'), try to find the user in DB
+                try:
+                    from db_auth import fetch_user as db_fetch_user
+                    admin_db_user = db_fetch_user(current_user.username)
+                    if admin_db_user and admin_db_user.get('id'):
+                        admin_user_id = int(admin_db_user['id'])
+                        print(f"[APPROVE-DOCTOR] Found admin in DB: username={current_user.username}, id={admin_user_id}")
+                except Exception as e:
+                    print(f"[APPROVE-DOCTOR] Could not find admin in DB: {e}")
+                    # approved_by will be NULL, which is acceptable
+        
+        print(f"[APPROVE-DOCTOR] Attempting to approve doctor_user_id={doctor_user_id}, admin_id={admin_user_id}")
+        success = update_doctor_approval(
+            doctor_user_id=doctor_user_id,
+            admin_user_id=admin_user_id,  # Can be None for demo admins
+            approval_status=approval_status,
+            approval_notes=approval_notes or 'Approved by administrator'
+        )
+        if success:
+            print(f"[APPROVE-DOCTOR] Successfully approved doctor_user_id={doctor_user_id}")
+            flash('Doctor account approved successfully.', 'success')
+        else:
+            print(f"[APPROVE-DOCTOR] Failed to approve doctor_user_id={doctor_user_id}")
+            flash('Failed to approve doctor account. Please check server logs.', 'danger')
+    except Exception as e:
+        import traceback
+        print(f"[APPROVE-DOCTOR] Exception: {e}")
+        print(traceback.format_exc())
+        flash(f'Error approving doctor account: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_doctor_approvals'))
+
+
+@app.route('/admin/reject-doctor/<int:doctor_user_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def reject_doctor(doctor_user_id):
+    """Reject a doctor account"""
+    approval_notes = request.form.get('rejection_notes', '').strip()
+    if not approval_notes:
+        flash('Please provide a reason for rejection.', 'warning')
+        return redirect(url_for('admin_doctor_approvals'))
+    
+    approval_status = 'Rejected'
+    
+    try:
+        # Get admin's numeric user ID from database if they have one
+        # If admin is using a demo account (string ID), approved_by will be NULL
+        admin_user_id = None
+        if current_user.id:
+            try:
+                # Try to convert to int if it's already numeric
+                admin_user_id = int(current_user.id)
+            except (ValueError, TypeError):
+                # If it's a string ID (like 'adm_001'), try to find the user in DB
+                try:
+                    from db_auth import fetch_user as db_fetch_user
+                    admin_db_user = db_fetch_user(current_user.username)
+                    if admin_db_user and admin_db_user.get('id'):
+                        admin_user_id = int(admin_db_user['id'])
+                        print(f"[REJECT-DOCTOR] Found admin in DB: username={current_user.username}, id={admin_user_id}")
+                except Exception as e:
+                    print(f"[REJECT-DOCTOR] Could not find admin in DB: {e}")
+                    # approved_by will be NULL, which is acceptable
+        
+        success = update_doctor_approval(
+            doctor_user_id=doctor_user_id,
+            admin_user_id=admin_user_id,  # Can be None for demo admins
+            approval_status=approval_status,
+            approval_notes=approval_notes
+        )
+        if success:
+            flash('Doctor account rejected.', 'info')
+        else:
+            flash('Failed to reject doctor account.', 'danger')
+    except Exception as e:
+        print(f"[REJECT-DOCTOR] Error: {e}")
+        flash('Error rejecting doctor account.', 'danger')
+    
+    return redirect(url_for('admin_doctor_approvals'))
 
 
 # ================================
@@ -274,12 +535,18 @@ def doctor_dashboard():
 def patient_dashboard():
     """Patient dashboard - view medical records and AI analysis"""
     ctx = {}
+    action_history = []
     try:
         if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'} and current_user and current_user.id:
             ctx = get_patient_dashboard(int(str(current_user.id)))
+            # Get action history (insurance quotes + medical analyses)
+            try:
+                action_history = get_patient_action_history(int(str(current_user.id)), limit=20)
+            except Exception as e:
+                print(f"[RDS action history] {e}")
     except Exception as e:
         print(f"[RDS patient dashboard] {e}")
-    return render_template('dashboard_patient.html', user=current_user, rds=ctx)
+    return render_template('dashboard_patient.html', user=current_user, rds=ctx, action_history=action_history)
 
 
 @app.route('/dashboard/admin')
@@ -289,6 +556,14 @@ def admin_dashboard():
     """Admin dashboard - system management"""
     overview = {}
     adapted_users = []
+    pending_doctors_count = 0
+    dashboard_stats = {
+        'total_users': len(example_users),
+        'documents_processed': 0,
+        'ai_pipeline_uptime': '100%',
+        'storage_used': 'N/A'
+    }
+    
     try:
         if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
             overview = get_admin_overview()
@@ -308,14 +583,33 @@ def admin_dashboard():
                         last_name=last_name,
                     )
                 )
+            # Get pending doctors count
+            try:
+                pending_doctors = get_pending_doctors()
+                pending_doctors_count = len(pending_doctors)
+            except Exception as e:
+                print(f"[RDS pending doctors count] {e}")
+                pending_doctors_count = 0
+            
+            # Get real dashboard stats
+            try:
+                dashboard_stats = get_admin_dashboard_stats()
+            except Exception as e:
+                print(f"[RDS admin dashboard stats] {e}")
     except Exception as e:
         print(f"[RDS admin overview/users] {e}")
 
     # Fallback to demo users if RDS not available
     if not adapted_users:
         adapted_users = list(example_users.values())
+        dashboard_stats['total_users'] = len(adapted_users)
 
-    return render_template('dashboard_admin.html', user=current_user, all_users=adapted_users, overview=overview)
+    return render_template('dashboard_admin.html', 
+                          user=current_user, 
+                          all_users=adapted_users, 
+                          overview=overview,
+                          pending_doctors_count=pending_doctors_count,
+                          stats=dashboard_stats)
 
 
 # ================================
@@ -424,6 +718,15 @@ def request_insurance_quote():
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 uploaded_file.save(file_path)
                 print(f"✓ Uploaded file: {file_path}")
+                
+                # Get file info for saving to RDS
+                import os as os_module
+                from hashlib import sha256
+                file_size = os_module.path.getsize(file_path)
+                file_size_mb = round(file_size / (1024 * 1024), 3)
+                # Estimate pages (rough: 1 page ≈ 50KB for text, but varies)
+                # For now, we'll leave pages as None and let it be inferred
+                file_hash = sha256(filename.encode() + str(current_user.id).encode() + str(datetime.now()).encode()).hexdigest()[:32]
 
                 print(f"✓ Processing uploaded document: {filename}")
                 doc_result = process_uploaded_document(file_path)
@@ -435,6 +738,42 @@ def request_insurance_quote():
                     document_data = doc_result
                     flash(f"✓ Document processed! Extracted {len(doc_result['conditions'])} conditions and {len(doc_result['medications'])} medications.", 'success')
                     print(f"✓ Extracted: {doc_result['conditions']}, {doc_result['medications']}")
+                    
+                    # Try to infer document type from filename or content
+                    inferred_doc_type = 'other'  # Default
+                    filename_lower = filename.lower()
+                    if 'lab' in filename_lower or 'laboratory' in filename_lower:
+                        inferred_doc_type = 'lab_results'
+                    elif 'imaging' in filename_lower or 'radiology' in filename_lower or 'xray' in filename_lower or 'ct' in filename_lower or 'mri' in filename_lower:
+                        inferred_doc_type = 'imaging_report'
+                    elif 'pathology' in filename_lower:
+                        inferred_doc_type = 'pathology'
+                    elif 'prescription' in filename_lower or 'rx' in filename_lower:
+                        inferred_doc_type = 'prescription'
+                    elif 'discharge' in filename_lower:
+                        inferred_doc_type = 'discharge_summary'
+                    elif 'consultation' in filename_lower or 'consult' in filename_lower:
+                        inferred_doc_type = 'consultation'
+                    else:
+                        # Default to medical_report for insurance quote documents
+                        inferred_doc_type = 'medical_report'
+                    
+                    # Save medical record to RDS
+                    try:
+                        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+                            patient_user_id = int(str(current_user.id))
+                            record_id = save_medical_record_to_rds(
+                                patient_user_id=patient_user_id,
+                                file_hash=file_hash,
+                                document_type=inferred_doc_type,
+                                size_mb=file_size_mb,
+                                status='Processed',
+                                uploaded_at=datetime.now()
+                            )
+                            if record_id:
+                                print(f"[RDS] Saved medical record from insurance quote: record_id={record_id}")
+                    except Exception as e:
+                        print(f"[RDS] Failed to save medical record from insurance quote: {e}")
                 else:
                     flash(f"⚠ Document processing failed: {doc_result.get('error')}", 'warning')
                 
@@ -558,24 +897,36 @@ def request_insurance_quote():
             
             print(f"✓ Insurance quote request created: {request_id} for user {current_user.username}")
             
-            # Process the quote request through AI engine
-            success, quotes, message = process_insurance_quote_request(quote_request)
-            
-            if success:
-                flash(f'Success! {message}', 'success')
-                # Clear any stale document extraction so alerts don't persist across tabs/pages
-                try:
-                    session.pop('document_data', None)
-                except Exception:
-                    pass
-                return redirect(url_for('view_insurance_quotes', request_id=request_id))
+            # If AI analyzer selected, show progress page and process asynchronously via fetch
+            if getattr(quote_request, 'use_ai_explainer', False):
+                return redirect(url_for('processing_quotes', request_id=request_id))
             else:
-                flash(f'Unable to generate quotes: {message}', 'warning')
-                try:
-                    session.pop('document_data', None)
-                except Exception:
-                    pass
-                return redirect(url_for('insurance_no_results', request_id=request_id))
+                # Process synchronously (legacy path)
+                success, quotes, message = process_insurance_quote_request(quote_request)
+                if success:
+                    # Persist to AWS (best-effort)
+                    try:
+                        if save_quotes_to_rds:
+                            save_quotes_to_rds(quote_request, quotes, {
+                                'username': getattr(current_user, 'username', str(current_user.id)),
+                                'name': getattr(current_user, 'first_name', '') or getattr(current_user, 'username', 'patient'),
+                                'email': getattr(current_user, 'email', f"{getattr(current_user, 'username', 'patient')}@example.com"),
+                            })
+                    except Exception as e:
+                        print(f"[RDS persist] sync save failed: {e}")
+                    flash(f'Success! {message}', 'success')
+                    try:
+                        session.pop('document_data', None)
+                    except Exception:
+                        pass
+                    return redirect(url_for('view_insurance_quotes', request_id=request_id))
+                else:
+                    flash(f'Unable to generate quotes: {message}', 'warning')
+                    try:
+                        session.pop('document_data', None)
+                    except Exception:
+                        pass
+                    return redirect(url_for('insurance_no_results', request_id=request_id))
                 
         except Exception as e:
             print(f"✗ Error processing insurance quote: {e}")
@@ -641,8 +992,17 @@ def view_insurance_quotes(request_id):
     quote_request = get_quote_request(request_id)
     
     if not quote_request:
-        flash('Quote request not found.', 'danger')
-        return redirect(url_for('dashboard'))
+        # Fallback: load from RDS by REQ token inside quote_requests.user_input
+        try:
+            pkg = get_quote_request_full_for_token(int(str(current_user.id)), request_id)
+        except Exception as e:
+            pkg = None
+            print(f"[RDS view] failed: {e}")
+        if not pkg:
+            flash('Quote request not found.', 'danger')
+            return redirect(url_for('dashboard'))
+        req_obj, quotes = _adapt_pkg_to_objects(pkg, current_user.id, request_id)
+        return render_template('insurance_quotes_display.html', quote_request=req_obj, quotes=quotes)
     
     # Verify user owns this request
     if quote_request.user_id != current_user.id and current_user.role != 'admin':
@@ -656,6 +1016,72 @@ def view_insurance_quotes(request_id):
     return render_template('insurance_quotes_display.html', 
                           quote_request=quote_request,
                           quotes=quote_request.quotes)
+
+
+@app.route('/insurance/processing/<request_id>')
+@login_required
+def processing_quotes(request_id):
+    """Show progress bar while AI analyzer generates quotes."""
+    quote_request = get_quote_request(request_id)
+    if not quote_request:
+        flash('Quote request not found.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('processing_quotes.html', request_id=request_id)
+
+
+@app.route('/insurance/process-now/<request_id>', methods=['POST'])
+@login_required
+def process_quotes_now(request_id):
+    """Start background processing and return immediately."""
+    import threading
+    qr = get_quote_request(request_id)
+    if not qr:
+        return jsonify({'success': False, 'message': 'Request not found'}), 404
+    # Initialize progress
+    PROGRESS[request_id] = {'pct': 5, 'status': 'Starting', 'done': False, 'success': None, 'results_url': None}
+    
+    def cb(pct: int, msg: str):
+        PROGRESS[request_id] = {**PROGRESS.get(request_id, {}), 'pct': int(pct), 'status': msg}
+    
+    # Capture lightweight user context for persistence in the worker thread
+    user_ctx = {
+        'username': getattr(current_user, 'username', str(current_user.id)),
+        'name': getattr(current_user, 'first_name', '') or getattr(current_user, 'username', 'patient'),
+        'email': getattr(current_user, 'email', f"{getattr(current_user, 'username', 'patient')}@example.com"),
+    }
+
+    def worker():
+        success, quotes, message = process_insurance_quote_request(qr, progress_cb=cb)
+        # Persist to AWS
+        try:
+            if success and save_quotes_to_rds:
+                save_quotes_to_rds(qr, quotes, user_ctx)
+        except Exception as e:
+            print(f"[RDS persist] async save failed: {e}")
+        # url_for requires an app context when used in a background thread
+        try:
+            with app.app_context():
+                url = url_for('view_insurance_quotes', request_id=request_id) if success else url_for('insurance_no_results', request_id=request_id)
+        except Exception:
+            # Fallback to simple path if context fails
+            url = f"/insurance/quotes/{request_id}" if success else f"/insurance/no-results/{request_id}"
+        PROGRESS[request_id] = {'pct': 100 if success else PROGRESS.get(request_id, {}).get('pct', 95),
+                                'status': 'Completed' if success else message,
+                                'done': True, 'success': success, 'results_url': url}
+        try:
+            session.pop('document_data', None)
+        except Exception:
+            pass
+    
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({'success': True})
+
+
+@app.route('/insurance/progress/<request_id>')
+@login_required
+def insurance_progress(request_id):
+    data = PROGRESS.get(request_id) or {'pct': 0, 'status': 'Pending', 'done': False}
+    return jsonify(data)
 
 
 @app.route('/insurance/no-results/<request_id>')
@@ -693,8 +1119,68 @@ def insurance_quote_history():
     """
     View user's insurance quote history (PATIENT ONLY)
     """
+    # Prefer RDS-backed history if available
+    rds_history = []
+    try:
+        rds_history = get_quote_history_for_patient(int(str(current_user.id)))
+    except Exception as e:
+        print(f"[RDS history] fallback to in-memory: {e}")
+    if rds_history:
+        return render_template('insurance_history.html', rds_history=rds_history, requests=None)
+    # Fallback to in-memory requests
     user_requests = get_user_quote_requests(current_user.id)
     return render_template('insurance_history.html', requests=user_requests)
+
+
+@app.route('/insurance/history/delete-rds/<int:rds_request_id>', methods=['POST'])
+@login_required
+@role_required('patient')
+def delete_rds_quote_request(rds_request_id: int):
+    """Delete a DB-backed quote request (and its recs/quotes) for current user."""
+    try:
+        from rds_repository import _conn
+        with _conn() as conn:
+            conn.autocommit = False
+            cur = conn.cursor()
+            # Ownership check
+            cur.execute("SELECT patient_id FROM quote_requests WHERE id=%s", (rds_request_id,))
+            row = cur.fetchone()
+            if not row or int(row[0]) != int(str(current_user.id)):
+                conn.rollback()
+                flash('Permission denied for this request.', 'danger')
+                return redirect(url_for('insurance_quote_history'))
+            # Delete quotes tied to recommendations of this request (optional cleanup)
+            cur.execute(
+                "DELETE FROM quotes WHERE id IN (SELECT quote_id FROM quote_recommendations WHERE quote_request_id=%s)",
+                (rds_request_id,),
+            )
+            # Delete the quote_request (cascades to recommendations)
+            cur.execute("DELETE FROM quote_requests WHERE id=%s", (rds_request_id,))
+            conn.commit()
+        flash('Quote request deleted.', 'info')
+    except Exception as e:
+        print(f"[RDS delete] failed: {e}")
+        flash('Unable to delete request.', 'warning')
+    return redirect(url_for('insurance_quote_history'))
+
+
+@app.route('/insurance/history/delete/<request_id>', methods=['POST'])
+@login_required
+@role_required('patient')
+def delete_local_quote_request(request_id: str):
+    """Delete an in-memory quote request by request_id."""
+    try:
+        from insurance_models import quote_requests_storage
+        req = quote_requests_storage.get(request_id)
+        if not req or getattr(req, 'user_id', None) != current_user.id:
+            flash('Request not found or permission denied.', 'warning')
+            return redirect(url_for('insurance_quote_history'))
+        del quote_requests_storage[request_id]
+        flash('Quote request deleted.', 'info')
+    except Exception as e:
+        print(f"[LOCAL delete] failed: {e}")
+        flash('Unable to delete request.', 'warning')
+    return redirect(url_for('insurance_quote_history'))
 
 
 @app.route('/insurance/download/<request_id>')
@@ -706,8 +1192,17 @@ def download_insurance_quotes(request_id):
     quote_request = get_quote_request(request_id)
     
     if not quote_request:
-        flash('Quote request not found.', 'danger')
-        return redirect(url_for('dashboard'))
+        # Fallback to RDS
+        try:
+            pkg = get_quote_request_full_for_token(int(str(current_user.id)), request_id)
+        except Exception as e:
+            pkg = None
+            print(f"[RDS download] failed: {e}")
+        if not pkg:
+            flash('Quote request not found.', 'danger')
+            return redirect(url_for('dashboard'))
+        # Build JSON directly from pkg
+        return jsonify(pkg)
     
     # Verify user owns this request
     if quote_request.user_id != current_user.id and current_user.role != 'admin':
@@ -728,8 +1223,18 @@ def insurance_cost_breakdown(request_id, product_id):
     quote_request = get_quote_request(request_id)
     
     if not quote_request:
-        flash('Quote request not found.', 'danger')
-        return redirect(url_for('dashboard'))
+        # Fallback: load from RDS by REQ token inside quote_requests.user_input
+        try:
+            pkg = get_quote_request_full_for_token(int(str(current_user.id)), request_id)
+        except Exception as e:
+            pkg = None
+            print(f"[RDS cost-breakdown] failed: {e}")
+        if not pkg:
+            flash('Quote request not found.', 'danger')
+            return redirect(url_for('dashboard'))
+        req_obj, quotes = _adapt_pkg_to_objects(pkg, current_user.id, request_id)
+        quote_request = req_obj
+        quote_request.quotes = quotes
     
     # Verify user owns this request
     if quote_request.user_id != current_user.id and current_user.role != 'admin':
@@ -742,6 +1247,25 @@ def insurance_cost_breakdown(request_id, product_id):
         if quote.product.product_id == product_id:
             target_quote = quote
             break
+    
+    # If still not found (e.g., old format or missing quote_id), try to match by first quote
+    # This is a fallback for edge cases
+    if not target_quote and quote_request.quotes:
+        # Try matching RDS quotes that might not have quote_id in product_id
+        if product_id.startswith('RDS'):
+            # Extract quote_id if in format "RDS-{id}"
+            if '-' in product_id:
+                try:
+                    quote_id_part = int(product_id.split('-')[1])
+                    # Try to match by checking if any quote has this quote_id embedded
+                    # Since we don't store quote_id directly on the quote object, use first as fallback
+                    target_quote = quote_request.quotes[0]
+                except (ValueError, IndexError):
+                    target_quote = quote_request.quotes[0]
+            else:
+                target_quote = quote_request.quotes[0]
+        else:
+            target_quote = quote_request.quotes[0]
     
     if not target_quote:
         flash('Product not found in this request.', 'danger')
@@ -761,41 +1285,10 @@ def insurance_cost_breakdown(request_id, product_id):
 def insurance_compare(request_id):
     """
     Compare multiple insurance quotes side-by-side
-    Use Case Step: Nested Path 8 - Review & Save/Download (Compare)
+    FEATURE COMING SOON - Currently disabled
     """
-    quote_request = get_quote_request(request_id)
-    
-    if not quote_request:
-        flash('Quote request not found.', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    # Verify user owns this request
-    if quote_request.user_id != current_user.id and current_user.role != 'admin':
-        flash('You do not have permission to view this request.', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    if not quote_request.quotes:
-        flash('No quotes available to compare.', 'warning')
-        return redirect(url_for('view_insurance_quotes', request_id=request_id))
-    
-    # Get selected quote indices from query params (default to all)
-    selected_indices = request.args.get('quotes', '')
-    if selected_indices:
-        try:
-            indices = [int(i) for i in selected_indices.split(',')]
-            selected_quotes = [quote_request.quotes[i] for i in indices if i < len(quote_request.quotes)]
-        except (ValueError, IndexError):
-            selected_quotes = quote_request.quotes
-    else:
-        selected_quotes = quote_request.quotes
-    
-    # Generate comparison data
-    comparison_data = compare_quotes(selected_quotes)
-    
-    return render_template('insurance_compare.html',
-                          quote_request=quote_request,
-                          comparison=comparison_data,
-                          selected_quotes=selected_quotes)
+    flash('Compare Quotes feature is coming soon! This feature will allow you to compare multiple insurance quotes side-by-side.', 'info')
+    return redirect(url_for('view_insurance_quotes', request_id=request_id))
 
 
 @app.route('/insurance/favorite/<request_id>/<product_id>', methods=['POST'])
@@ -899,14 +1392,28 @@ def doctor_review_quotes(request_id):
 @login_required
 def export_insurance_pdf(request_id):
     """
-    Export insurance quotes as PDF
-    Use Case Step: Nested Path 7 & 8 - Download PDF
+    Export insurance quotes as HTML
+    Use Case Step: Nested Path 7 & 8 - Download HTML
     """
     quote_request = get_quote_request(request_id)
     
     if not quote_request:
-        flash('Quote request not found.', 'danger')
-        return redirect(url_for('dashboard'))
+        # RDS fallback
+        try:
+            pkg = get_quote_request_full_for_token(int(str(current_user.id)), request_id)
+        except Exception as e:
+            pkg = None
+            print(f"[RDS pdf] failed: {e}")
+        if not pkg:
+            flash('Quote request not found.', 'danger')
+            return redirect(url_for('dashboard'))
+        req_obj, quotes = _adapt_pkg_to_objects(pkg, current_user.id, request_id)
+        from flask import make_response
+        pdf_html = generate_pdf_summary(req_obj, quotes)
+        response = make_response(pdf_html)
+        response.headers['Content-Type'] = 'text/html'
+        response.headers['Content-Disposition'] = f'attachment; filename=insurance_quotes_{request_id}.html'
+        return response
     
     # Verify user owns this request
     if quote_request.user_id != current_user.id and current_user.role != 'admin':
@@ -923,6 +1430,66 @@ def export_insurance_pdf(request_id):
     response.headers['Content-Disposition'] = f'attachment; filename=insurance_quotes_{request_id}.html'
     
     return response
+
+
+@app.route('/insurance/export-real-pdf/<request_id>')
+@login_required
+def export_insurance_real_pdf(request_id):
+    """
+    Export insurance quotes as actual PDF file
+    Uses WeasyPrint if available, otherwise falls back to HTML
+    """
+    quote_request = get_quote_request(request_id)
+    
+    if not quote_request:
+        # RDS fallback
+        try:
+            pkg = get_quote_request_full_for_token(int(str(current_user.id)), request_id)
+        except Exception as e:
+            pkg = None
+            print(f"[RDS real-pdf] failed: {e}")
+        if not pkg:
+            flash('Quote request not found.', 'danger')
+            return redirect(url_for('dashboard'))
+        req_obj, quotes = _adapt_pkg_to_objects(pkg, current_user.id, request_id)
+        html_content = generate_pdf_summary(req_obj, quotes)
+    else:
+        # Verify user owns this request
+        if quote_request.user_id != current_user.id and current_user.role != 'admin':
+            flash('You do not have permission to download this request.', 'danger')
+            return redirect(url_for('dashboard'))
+        html_content = generate_pdf_summary(quote_request, quote_request.quotes)
+    
+    # Try to convert HTML to PDF using WeasyPrint
+    from flask import make_response
+    try:
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+        
+        font_config = FontConfiguration()
+        pdf_bytes = HTML(string=html_content).write_pdf(
+            stylesheets=[CSS(string='@page { size: A4; margin: 2cm; }')],
+            font_config=font_config
+        )
+        
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=insurance_quotes_{request_id}.pdf'
+        return response
+    except ImportError:
+        # WeasyPrint not installed - fallback to HTML
+        flash('PDF export requires WeasyPrint library. Exporting as HTML instead.', 'info')
+        response = make_response(html_content)
+        response.headers['Content-Type'] = 'text/html'
+        response.headers['Content-Disposition'] = f'attachment; filename=insurance_quotes_{request_id}.html'
+        return response
+    except Exception as e:
+        print(f"[PDF export] error: {e}")
+        flash(f'PDF generation failed: {str(e)}. Exporting as HTML instead.', 'warning')
+        response = make_response(html_content)
+        response.headers['Content-Type'] = 'text/html'
+        response.headers['Content-Disposition'] = f'attachment; filename=insurance_quotes_{request_id}.html'
+        return response
 
 
 @app.route('/insurance/pending-reviews')
@@ -955,9 +1522,18 @@ def pending_doctor_reviews():
 @role_required('doctor', 'patient')
 def clinical_analysis():
     """
-    AI-Assisted Clinical Record Analysis (Saahir Khan feature)
-    Upload medical documents for complete AI pipeline analysis:
-    OCR → Sectionizer → NER → Entity Linking → FHIR → Explanation → Safety Check
+    AI-Assisted Clinical Record Analysis (Saahir Khan - Use Case 2)
+    
+    Upload medical documents for complete AI pipeline analysis using UC2_models pipeline:
+    1. OCR - Extract text from PDFs/images
+    2. Sectionizer - Split into medical categories
+    3. NER - Identify entities (problems, medications, allergies, lab tests)
+    4. Entity Linking - Map to ICD-10-AM, SNOMED, RxNorm
+    5. FHIR Mapping - Generate FHIR R4 bundle
+    6. Explanation - Generate patient-friendly summary with glossary and risks
+    7. Safety Check - Detect red flags and contraindications
+    
+    Outputs: summary_md, risks_md, safety_flags_json, fhir_data
     """
     form = ClinicalRecordAnalysisForm()
     
@@ -974,47 +1550,211 @@ def clinical_analysis():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             uploaded_file.save(file_path)
             
-            print(f"\n✓ Processing clinical document: {filename}")
-            print(f"   Type: {form.document_type.data}")
-            print(f"   User: {current_user.username} ({current_user.role})")
+            # Get file info before processing (for saving to RDS)
+            from hashlib import sha256
+            from datetime import datetime
+            file_size = os.path.getsize(file_path)
+            file_size_mb = round(file_size / (1024 * 1024), 3)
             
-            # Process document through complete AI pipeline
-            result = process_clinical_document(
-                file_path=file_path,
-                document_type=form.document_type.data,
-                patient_name=form.patient_name.data or None,
-                notes=form.notes.data or None
-            )
+            print(f"\n{'='*70}")
+            print(f"📄 CLINICAL DOCUMENT UPLOAD")
+            print(f"{'='*70}")
+            print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Filename: {filename}")
+            print(f"File Size: {file_size_mb} MB ({file_size:,} bytes)")
+            print(f"Document Type: {form.document_type.data}")
+            print(f"User: {current_user.username} ({current_user.role})")
+            if form.patient_name.data:
+                print(f"Patient Name: {form.patient_name.data}")
+            if form.notes.data:
+                print(f"Notes: {form.notes.data[:100]}..." if len(form.notes.data) > 100 else f"Notes: {form.notes.data}")
+            print(f"{'='*70}\n")
             
-            # Clean up uploaded file
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            # Save file info to session for processing page
+            session['clinical_analysis_file'] = {
+                'file_path': file_path,
+                'filename': filename,
+                'file_size_mb': file_size_mb,
+                'document_type': form.document_type.data,
+                'patient_name': form.patient_name.data or None,
+                'notes': form.notes.data or None
+            }
             
-            if result.success:
-                # Save result (with patient ID for database storage)
-                analysis_id = save_analysis_result(result, patient_id=current_user.id)
+            # Generate a temporary analysis ID for progress tracking
+            analysis_id_temp = f"CA-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            
+            # Redirect to processing page instead of processing directly
+            return redirect(url_for('processing_clinical_analysis', analysis_id=analysis_id_temp))
                 
-                flash(f'✓ Analysis complete! Identified {len(result.conditions)} conditions, {len(result.medications)} medications.', 'success')
-                
-                # Show warning if red flags detected
-                if result.red_flags:
-                    flash(f'⚠ WARNING: {len(result.red_flags)} red flag(s) detected. Please review carefully.', 'warning')
-                
-                return redirect(url_for('clinical_analysis_results', analysis_id=analysis_id))
-            else:
-                flash(f'⚠ Analysis failed: {result.error_message}', 'danger')
-                return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
-        
         except Exception as e:
             import traceback
             print(f"✗ Error processing clinical document: {e}")
-            print(traceback.format_exc())
+            print(traceback.print_exc())
             flash(f'An error occurred: {str(e)}', 'danger')
             return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
     
     return render_template('clinical_analysis_upload.html', form=form, pipeline_available=PIPELINE_AVAILABLE)
+
+
+@app.route('/clinical-analysis/processing/<analysis_id>')
+@login_required
+@role_required('doctor', 'patient')
+def processing_clinical_analysis(analysis_id):
+    """Display processing page with progress bar"""
+    return render_template('processing_clinical_analysis.html', analysis_id=analysis_id)
+
+
+@app.route('/clinical-analysis/process-now/<analysis_id>', methods=['POST'])
+@login_required
+def process_clinical_analysis_now(analysis_id):
+    """Start background processing and return immediately."""
+    import threading
+    
+    # Get file info from session
+    file_info = session.get('clinical_analysis_file')
+    if not file_info:
+        return jsonify({'success': False, 'message': 'File information not found'}), 404
+    
+    file_path = file_info['file_path']
+    document_type = file_info['document_type']
+    patient_name = file_info.get('patient_name')
+    notes = file_info.get('notes')
+    
+    # Capture user_id before starting thread (current_user not available in threads)
+    user_id = str(current_user.id) if current_user.is_authenticated else None
+    username = getattr(current_user, 'username', 'unknown')
+    
+    # Initialize progress
+    PROGRESS[analysis_id] = {'pct': 2, 'status': 'Initializing...', 'done': False, 'success': None, 'results_url': None}
+    
+    def cb(pct: int, msg: str):
+        PROGRESS[analysis_id] = {**PROGRESS.get(analysis_id, {}), 'pct': int(pct), 'status': msg}
+    
+    def worker():
+        try:
+            from datetime import datetime
+            from hashlib import sha256
+            from rds_repository import save_medical_record_to_rds
+            
+            # Process document through complete AI pipeline
+            print(f"🚀 Starting UC2 AI Medical Pipeline Processing...\n")
+            pipeline_start_time = datetime.now()
+            
+            result = process_clinical_document(
+                file_path=file_path,
+                document_type=document_type,
+                patient_name=patient_name,
+                notes=notes,
+                progress_cb=cb
+            )
+            
+            pipeline_end_time = datetime.now()
+            pipeline_duration = (pipeline_end_time - pipeline_start_time).total_seconds()
+            
+            # Clean up uploaded file
+            try:
+                os.remove(file_path)
+                print(f"\n🗑️  Cleaned up temporary file: {file_info['filename']}")
+            except Exception as e:
+                print(f"\n⚠️  Warning: Could not remove temporary file {file_info['filename']}: {e}")
+            
+            if result.success:
+                # Save result (with patient ID for database storage)
+                actual_analysis_id = save_analysis_result(result, patient_id=user_id)
+                
+                # Also save to RDS if available
+                try:
+                    if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
+                        patient_user_id = int(str(user_id)) if user_id else None
+                        file_hash = sha256(result.analysis_id.encode()).hexdigest()[:32]
+                        
+                        # Map form document_type to database value
+                        doc_type_map = {
+                            'medical_report': 'medical_report',
+                            'lab_results': 'lab_results',
+                            'prescription': 'prescription',
+                            'discharge_summary': 'discharge_summary',
+                            'imaging_report': 'imaging_report',
+                            'pathology': 'pathology',
+                            'consultation': 'consultation',
+                            'other': 'other'
+                        }
+                        db_doc_type = doc_type_map.get(document_type, 'other')
+                        
+                        record_id = save_medical_record_to_rds(
+                            patient_user_id=patient_user_id,
+                            file_hash=file_hash,
+                            document_type=db_doc_type,
+                            size_mb=file_info['file_size_mb'],
+                            status='Processed' if result.success else 'Failed',
+                            uploaded_at=result.timestamp if hasattr(result, 'timestamp') else datetime.now()
+                        )
+                        if record_id:
+                            print(f"[RDS] Saved medical record from clinical analysis: record_id={record_id}, type={db_doc_type}")
+                except Exception as e:
+                    print(f"[RDS] Failed to save medical record from clinical analysis: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                print(f"\n{'='*70}")
+                print(f"📊 ANALYSIS RESULTS SUMMARY")
+                print(f"{'='*70}")
+                print(f"Analysis ID: {result.analysis_id}")
+                print(f"Patient: {result.patient_name or 'Unknown'}")
+                print(f"Conditions Found: {len(result.conditions)}")
+                print(f"Medications Found: {len(result.medications)}")
+                print(f"Risk Level: {result.risk_level.upper()}")
+                print(f"Red Flags: {len(result.red_flags)}")
+                print(f"Mistral LLM Analysis: {'✓ Available' if result.mistral_analysis else '✗ Not available'}")
+                print(f"{'='*70}\n")
+                
+                # Build results URL manually (url_for doesn't work in threads without request context)
+                url = f'/clinical-analysis/results/{actual_analysis_id}'
+                print(f"✅ [PROGRESS 100%] Analysis complete! Results URL: {url}")
+            else:
+                url = '/clinical-analysis'
+                print(f"❌ [PROGRESS 100%] Analysis failed! Redirecting to upload page.")
+            
+            PROGRESS[analysis_id] = {
+                'pct': 100,
+                'status': 'Analysis complete!' if result.success else f'Analysis failed: {result.error_message}',
+                'done': True,
+                'success': result.success,
+                'results_url': url
+            }
+            print(f"🎯 [PROGRESS UPDATE] Progress bar reached 100% - Status: {PROGRESS[analysis_id]['status']}")
+            
+            # Clear session data
+            try:
+                session.pop('clinical_analysis_file', None)
+            except Exception:
+                pass
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            # Build error URL manually
+            error_url = '/clinical-analysis'
+            print(f"💥 [PROGRESS 100%] Error occurred during processing: {str(e)}")
+            PROGRESS[analysis_id] = {
+                'pct': 100,
+                'status': f'Error: {str(e)}',
+                'done': True,
+                'success': False,
+                'results_url': error_url
+            }
+            print(f"🎯 [PROGRESS UPDATE] Progress bar reached 100% (with error) - Status: {PROGRESS[analysis_id]['status']}")
+    
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({'success': True})
+
+
+@app.route('/clinical-analysis/progress/<analysis_id>')
+@login_required
+def clinical_analysis_progress(analysis_id):
+    """Return current progress status"""
+    data = PROGRESS.get(analysis_id) or {'pct': 0, 'status': 'Pending', 'done': False}
+    return jsonify(data)
 
 
 @app.route('/clinical-analysis/results/<analysis_id>')
@@ -1024,13 +1764,17 @@ def clinical_analysis_results(analysis_id):
     """
     Display complete analysis results with all extracted data
     """
-    result = get_analysis_result(analysis_id)
+    # Get current user ID and filter by user to ensure they can only see their own analyses
+    try:
+        patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+    except (ValueError, TypeError):
+        patient_user_id = None
+    
+    result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
     
     if not result:
-        flash('Analysis not found.', 'danger')
+        flash('Analysis not found or you do not have permission to view this analysis.', 'danger')
         return redirect(url_for('clinical_analysis'))
-    
-    # In production, verify user has permission to view this analysis
     
     return render_template('clinical_analysis_results.html', result=result)
 
@@ -1055,10 +1799,16 @@ def download_fhir_bundle(analysis_id):
     """
     Download FHIR R4 bundle as JSON
     """
-    result = get_analysis_result(analysis_id)
+    # Get current user ID and filter by user
+    try:
+        patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+    except (ValueError, TypeError):
+        patient_user_id = None
+    
+    result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
     
     if not result or not result.fhir_bundle:
-        flash('FHIR bundle not found.', 'danger')
+        flash('FHIR bundle not found or you do not have permission to access it.', 'danger')
         return redirect(url_for('clinical_analysis'))
     
     # Return as JSON download
@@ -1077,10 +1827,16 @@ def download_clinical_report(analysis_id):
     """
     Download complete analysis report as JSON
     """
-    result = get_analysis_result(analysis_id)
+    # Get current user ID and filter by user
+    try:
+        patient_user_id = int(str(current_user.id)) if current_user.is_authenticated else None
+    except (ValueError, TypeError):
+        patient_user_id = None
+    
+    result = get_analysis_result(analysis_id, patient_user_id=patient_user_id)
     
     if not result:
-        flash('Analysis not found.', 'danger')
+        flash('Analysis not found or you do not have permission to access it.', 'danger')
         return redirect(url_for('clinical_analysis'))
     
     # Return as JSON download

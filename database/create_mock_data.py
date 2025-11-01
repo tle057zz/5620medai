@@ -53,11 +53,21 @@ def get_or_create_product(cur, name: str, provider: str, premium: float) -> int:
         return row[0]
     cur.execute(
         """
-        INSERT INTO insurance_products(name, coverage, premium, provider, product_link, insurance_type)
-        VALUES (%s,'General cover',%s,%s,%s,'Health')
+        INSERT INTO insurance_products(
+          name, provider, product_link, insurance_type,
+          coverage, premium,
+          plan_type, monthly_premium, coverage_amount, annual_deductible,
+          copay, coinsurance, max_out_of_pocket, coverage_details, exclusions
+        )
+        VALUES (
+          %s, %s, %s, 'Health',
+          'General cover', %s,
+          'HMO', %s, 250000, 3000,
+          25, 30, 7500, '["Hospitalization","Outpatient","Drugs"]'::jsonb, '["Cosmetic procedures"]'::jsonb
+        )
         RETURNING id
         """,
-        (name, premium, provider, f"https://example.com/{name.replace(' ', '-').lower()}"),
+        (name, provider, f"https://example.com/{name.replace(' ', '-').lower()}", premium, premium),
     )
     return cur.fetchone()[0]
 
@@ -156,11 +166,24 @@ def main():
             prod = random.choice(product_ids)
             cur.execute(
                 """
-                INSERT INTO quotes(suitability_score, cost, coverage_summary, insurance_product_id, patient_id)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO quotes(
+                  suitability_score, cost, cost_score, coverage_score, overall_score,
+                  coverage_summary, rationale, insurance_product_id, patient_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (random.randint(50, 95), round(random.uniform(70, 200), 2), 'Auto-generated coverage', prod, pid),
+                (
+                  random.randint(50, 95),
+                  round(random.uniform(70, 200), 2),
+                  random.randint(40, 95),
+                  random.randint(40, 95),
+                  random.randint(50, 95),
+                  'Auto-generated coverage',
+                  'Mock rationale',
+                  prod,
+                  pid,
+                ),
             )
             quote_ids.append(cur.fetchone()[0])
             # policy hold for subset

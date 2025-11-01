@@ -1,0 +1,1490 @@
+{
+    "INTRODUCTION": [
+        {
+            "text": "names",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "details",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "sample",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "fields",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "left blank",
+            "label": "GENERAL",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 1: PATIENT'S PARTICULARS": [
+        {
+            "text": "patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Mr Tan Ah Kow NRIC/FIN/Passport no.",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "S1111111X Age",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "years",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 2: DOCTOR'S PARTICULARS": [
+        {
+            "text": "doctor",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Tan Ah Moi NRIC/FIN/Passport no. of doctor",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "S2222222Z",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MCR",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Clinic",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "name",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "Blackacre Hospital",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "qualifications",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "experience",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Doctor-patient relationship",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "seeing",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "period",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mental capacity",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "assessment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Mr Tan Ah",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Kow",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "average",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "year",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical report",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 3: PATIENT'S MEDICAL INFORMATION": [
+        {
+            "text": "Patient's",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "clinical history",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "information",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical records",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "applicant",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Kow",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Beng",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "examination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "year",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "man",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "unemployed",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Tan",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Ah Beng's flat",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "history",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical conditions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "hypertension",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "hyperlipidemia",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "strokes",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "heart problems",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "cardiomyopathy",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "cardiac failure",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "chronic renal disease",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "treated",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "ABC Hospital",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "admitted",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "diagnosed",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "stroke",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "CT",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MRI brain scans",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "XYZ",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Hospital",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "rehabilitation",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Mr Tan",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Blackacre Hospital",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "follow-up",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "treatment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "clinical impression",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "behavioural",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "psychological",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "secondary to",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Dementia",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "Mr Tan Ah Beng",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "incontinent",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "bathe",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "toilet",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "feed himself",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "deterioration",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "cognitive ability",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "physical state",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "years",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "Findings",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "physical examination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mental state examination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "observations",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient's demeanour",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "body language",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "tone",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "assessment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "interactions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient/the tests",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "questions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "clinic",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "wheel chair",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "His mood",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "euthymic",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "non-depressed",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "positive",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mood",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "psychotic",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "place",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "orientation",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "hospital clinic",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "identified",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "son",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "told",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "I",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "moments",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Wednesday",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "actual day",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Monday",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "date",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "day",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "afternoon",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "actual time",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "watch",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "age",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "birthday",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "flat",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "address",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "Bedok",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Jurong",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Prime",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Minister",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "arithmetic",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "financial issues Mr Tan",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "backwards",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "notes",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "coins",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "coin",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "cents",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "dollars",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Personal welfare/property",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "affairs",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "property",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "elderly mother",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "joint names",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "herself",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "rooms",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "4-room flat",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Tan said yes",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "elderly",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mother",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Mr Tan said",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "money matters",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical problems",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "stared",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "shook",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "head",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medicine",
+            "label": "MEDICATION",
+            "confidence": "high"
+        },
+        {
+            "text": "moment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "physical examination/mental state examination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "investigation",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Results",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "CT brain",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MRI brain scan",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "investigations",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "psychotic symptoms",
+            "label": "DISEASE",
+            "confidence": "high"
+        }
+    ],
+    "SECTION 4: OPINION ON PATIENT'S MENTAL CAPACITY": [
+        {
+            "text": "OPINION",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "PATIENT'S",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "MENTAL CAPACITY",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "RELATION",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "information",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "decision",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "personal welfare",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "process",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Page",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "No",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "property",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "affairs",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Please state",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "dementia",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "stroke",
+            "label": "DISEASE",
+            "confidence": "high"
+        },
+        {
+            "text": "impaired",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "functioning",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mind",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "brain",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "failure",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "hospital",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "day",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "date",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "short",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "inability",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "retain",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "age",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "time",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "watch",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "notes",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "coins",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "arithmetic",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "weigh",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "cognitive failures",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "decisions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "personal",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "financial affairs",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "owns with",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "elderly mother",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "concrete",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "plan",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical problems",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medication",
+            "label": "MEDICATION",
+            "confidence": "low"
+        },
+        {
+            "text": "cognitive functions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "improve",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "treatment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "reverse",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "please",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "assessment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "application",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "doctor",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "professional opinion",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "9",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "memory deficits",
+            "label": "DISEASE",
+            "confidence": "high"
+        }
+    ],
+    "SECTION 5: DECLARATION": [
+        {
+            "text": "read",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "provisions",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "sections",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Mental Capacity Act",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "correctness",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "opinion",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "report",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "duty",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Court",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Doctor",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Tan Ah Moi____ Date",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "Personal welfare",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "matters",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "live",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "medical",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "dental treatment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Property",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "affairs",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "implies",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient's financial",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient's",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mental capacity",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "please note",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "clinical history",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "examination",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "patient",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "lacks",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "capacity",
+            "label": "GENERAL",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 3 OF THE MENTAL CAPACITY ACT": [
+        {
+            "text": "principles",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "capacity",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "lacks",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "treated",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "decision unless",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "success",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "decision",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "act done",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "Act",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "interests",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "restrictive",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person's rights",
+            "label": "GENERAL",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 4 OF THE MENTAL CAPACITY ACT": [
+        {
+            "text": "Act",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "lacks",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "capacity",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "material time",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "decision",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "himself",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "matter",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "impairment",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "functioning",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "mind",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "brain",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "disturbance",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "permanent",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "temporary",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person's",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "age",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "appearance",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "condition",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "behaviour",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "proceedings",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "offences",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "balance",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "section",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "\"D\")",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "exercise",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "D",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "years",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        }
+    ],
+    "SECTION 5 OF THE MENTAL CAPACITY ACT": [
+        {
+            "text": "section",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "person",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "decision",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "himself",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "information",
+            "label": "CONTEXT",
+            "confidence": "medium"
+        },
+        {
+            "text": "process",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "talking",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "sign language",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "explanation",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "language",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "visual aids",
+            "label": "GENERAL",
+            "confidence": "medium"
+        },
+        {
+            "text": "consequences of",
+            "label": "GENERAL",
+            "confidence": "medium"
+        }
+    ]
+}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Generating Quotes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0"><i class="bi bi-robot"></i> Generating Your Quotes…</h4>
+        </div>
+        <div class="card-body">
+          <p>We are analyzing your profile with the AI analyzer. This may take a few seconds.</p>
+          <div class="progress" style="height: 28px;">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 5%;">5%</div>
+          </div>
+          <p class="text-muted mt-3" id="progressText">Starting…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const requestId = {{ request_id|tojson }};
+    const bar = document.getElementById('progressBar');
+    const text = document.getElementById('progressText');
+    let pct = 5;
+    // Start processing in background
+    fetch(`/insurance/process-now/${requestId}`, {method: 'POST'})
+      .then(() => {})
+      .catch(() => {});
+
+    // Poll progress
+    const poll = setInterval(() => {
+      fetch(`/insurance/progress/${requestId}`)
+        .then(r => r.json())
+        .then(d => {
+          const p = Math.max(5, Math.min(100, d.pct || 0));
+          bar.style.width = p + '%';
+          bar.textContent = p + '%';
+          text.textContent = d.status || 'Working…';
+          if (d.done) {
+            clearInterval(poll);
+            setTimeout(() => { window.location.href = d.results_url || '/dashboard'; }, 300);
+            return;
+          }
+          // Safety: if progress shows completed but backend flag missed, force redirect
+          if (p >= 100 || (d.status && d.status.toLowerCase().includes('completed'))) {
+            clearInterval(poll);
+            const fallbackUrl = `/insurance/quotes/${requestId}`;
+            setTimeout(() => { window.location.href = d.results_url || fallbackUrl; }, 300);
+          }
+        })
+        .catch(() => {
+          // keep polling gently
+        });
+    }, 500);
+  })();
+</script>
+{% endblock %}
+
+

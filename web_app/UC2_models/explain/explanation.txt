@@ -1,0 +1,26 @@
+Mr Tan (male)
+
+Conditions
+- hypertension — active
+- hyperlipidemia — active
+- stroke — active
+- cardiac failure — active
+- chronic renal disease — active
+- dementia — active
+- psychotic symptoms — active
+- memory deficit — active
+
+Observations
+- MRI brain scan
+- CT brain
+
+Organizations
+- Blackacre Hospital
+- ABC Hospital
+
+Practitioners
+- Tan Ah Moi
+
+Notes
+- This summary is generated from the provided FHIR Bundle.
+- Only information present in the bundle is included; no additional facts were inferred.

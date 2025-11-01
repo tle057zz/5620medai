@@ -10,13 +10,28 @@
     </div>
 </div>
 
+<!-- Pending Doctor Approvals Alert -->
+{% if pending_doctors_count > 0 %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <h5 class="alert-heading">
+        <i class="bi bi-exclamation-triangle-fill"></i> Pending Doctor Approvals
+    </h5>
+    <p class="mb-2">You have <strong>{{ pending_doctors_count }}</strong> doctor account(s) waiting for approval.</p>
+    <hr>
+    <a href="{{ url_for('admin_doctor_approvals') }}" class="btn btn-warning">
+        <i class="bi bi-shield-check"></i> Review Pending Approvals
+    </a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <!-- System Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card border-primary">
             <div class="card-body text-center">
                 <i class="bi bi-people display-4 text-primary"></i>
-                <h3 class="mt-2">{{ all_users|length }}</h3>
+                <h3 class="mt-2">{{ stats.total_users if stats else all_users|length }}</h3>
                 <p class="text-muted mb-0">Total Users</p>
             </div>
         </div>
@@ -25,7 +40,7 @@
         <div class="card border-success">
             <div class="card-body text-center">
                 <i class="bi bi-file-earmark-medical display-4 text-success"></i>
-                <h3 class="mt-2">342</h3>
+                <h3 class="mt-2">{{ stats.documents_processed if stats else 0 }}</h3>
                 <p class="text-muted mb-0">Documents Processed</p>
             </div>
         </div>
@@ -34,7 +49,7 @@
         <div class="card border-info">
             <div class="card-body text-center">
                 <i class="bi bi-cpu display-4 text-info"></i>
-                <h3 class="mt-2">98%</h3>
+                <h3 class="mt-2">{{ stats.ai_pipeline_uptime if stats else '100%' }}</h3>
                 <p class="text-muted mb-0">AI Pipeline Uptime</p>
             </div>
         </div>
@@ -43,7 +58,7 @@
         <div class="card border-warning">
             <div class="card-body text-center">
                 <i class="bi bi-hdd display-4 text-warning"></i>
-                <h3 class="mt-2">2.4GB</h3>
+                <h3 class="mt-2">{{ stats.storage_used if stats else 'N/A' }}</h3>
                 <p class="text-muted mb-0">Storage Used</p>
             </div>
         </div>
@@ -57,9 +72,17 @@
             <div class="card-header bg-primary text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-people"></i> User Management</h5>
-                    <button class="btn btn-light btn-sm">
-                        <i class="bi bi-plus-circle"></i> Add New User
-                    </button>
+                    <div>
+                        {% if pending_doctors_count > 0 %}
+                        <a href="{{ url_for('admin_doctor_approvals') }}" class="btn btn-warning btn-sm me-2">
+                            <i class="bi bi-shield-check"></i> Doctor Approvals 
+                            <span class="badge bg-dark">{{ pending_doctors_count }}</span>
+                        </a>
+                        {% endif %}
+                        <button class="btn btn-light btn-sm">
+                            <i class="bi bi-plus-circle"></i> Add New User
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body">

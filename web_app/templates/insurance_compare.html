@@ -40,7 +40,7 @@
                                 {% if 'score' in metric_key %}
                                 <tr>
                                     <td><strong>{{ metric_data.label }}</strong></td>
-                                    {% for value in metric_data.values %}
+                                    {% for value in metric_data.values() %}
                                     <td class="text-center {% if loop.index0 == metric_data.best_index %}table-success{% endif %}">
                                         {{ value }}{{ metric_data.unit }}
                                         {% if loop.index0 == metric_data.best_index %}
@@ -60,7 +60,7 @@
                                 {% if 'score' not in metric_key %}
                                 <tr>
                                     <td><strong>{{ metric_data.label }}</strong></td>
-                                    {% for value in metric_data.values %}
+                                    {% for value in metric_data.values() %}
                                     <td class="text-center {% if loop.index0 == metric_data.best_index %}table-success{% endif %}">
                                         {{ metric_data.unit }}{{ "{:,}".format(value) if value > 1000 else value }}
                                         {% if loop.index0 == metric_data.best_index %}

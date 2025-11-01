@@ -114,7 +114,119 @@ try:
         )
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_approvals_record ON ai_approvals(medical_record_id);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_approvals_doctor ON ai_approvals(doctor_id);")
+        # ---- Align insurance_products with web_app insurance_models.py ----
+        def ensure_col(table, column, type_sql):
+            cur.execute(
+                f"""
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = '{table}' AND column_name = '{column}'
+                  ) THEN
+                    EXECUTE 'ALTER TABLE {table} ADD COLUMN {column} {type_sql}';
+                  END IF;
+                END$$;
+                """
+            )
+        print("   • Ensuring insurance_products extended columns…")
+        ensure_col('insurance_products','plan_type','TEXT')
+        ensure_col('insurance_products','monthly_premium','NUMERIC(12,2)')
+        ensure_col('insurance_products','coverage_amount','NUMERIC(14,2)')
+        ensure_col('insurance_products','annual_deductible','NUMERIC(12,2)')
+        ensure_col('insurance_products','copay','NUMERIC(12,2)')
+        ensure_col('insurance_products','coinsurance','NUMERIC(12,2)')
+        ensure_col('insurance_products','max_out_of_pocket','NUMERIC(12,2)')
+        ensure_col('insurance_products','coverage_details','JSONB')
+        ensure_col('insurance_products','exclusions','JSONB')
+        print("   • Ensuring quotes score columns…")
+        ensure_col('quotes','cost_score','INT')
+        ensure_col('quotes','coverage_score','INT')
+        ensure_col('quotes','overall_score','INT')
+        ensure_col('quotes','rationale','TEXT')
+        print("   • Ensuring health_data lifestyle columns…")
+        ensure_col('health_data','smoking_status','TEXT')
+        ensure_col('health_data','alcohol_consumption','TEXT')
+        print("   • Ensuring explanations mistral_analysis column…")
+        ensure_col('explanations','mistral_analysis','TEXT')
+        print("   • Ensuring doctors approval columns…")
+        ensure_col('doctors','ahpra_number','TEXT')
+        ensure_col('doctors','approval_status','TEXT')
+        ensure_col('doctors','approval_notes','TEXT')
+        ensure_col('doctors','approved_by','BIGINT')
+        ensure_col('doctors','approved_at','TIMESTAMPTZ')
+        ensure_col('doctors','created_at','TIMESTAMPTZ')
+        
+        print("   • Ensuring medical_records document_type column…")
+        ensure_col('medical_records','document_type','TEXT')
+        # Set default approval_status for existing doctors
+        connection.set_session(autocommit=True)
+        try:
+            cur.execute("""
+                UPDATE doctors 
+                SET approval_status = 'Approved' 
+                WHERE approval_status IS NULL OR approval_status = ''
+            """)
+        except Exception:
+            pass
         connection.set_session(autocommit=False)
+        
+        # Update existing products with provider URLs
+        print("   • Updating provider URLs in insurance_products…")
+        provider_urls = {
+            "Bupa Australia": "https://www.bupa.com.au",
+            "Medibank Private": "https://www.medibank.com.au",
+            "ahm (by Medibank)": "https://www.ahm.com.au",
+            "HCF": "https://www.hcf.com.au",
+            "nib Health Funds": "https://www.nib.com.au",
+            "HBF Health": "https://www.hbf.com.au",
+            "Australian Unity Health": "https://www.australianunity.com.au/health-insurance",
+            "GMHBA Health Insurance": "https://www.gmhba.com.au",
+            "Health Partners": "https://www.healthpartners.com.au",
+            "HIF": "https://www.hif.com.au",
+            "St Lukes Health": "https://www.stlukes.com.au",
+            "Latrobe Health Services": "https://www.latrobehealth.com.au",
+            "Westfund Health Insurance": "https://www.westfund.com.au",
+            "Phoenix Health Fund": "https://www.phoenixhealthfund.com.au",
+            "AIA Health Insurance": "https://www.aiahealth.com.au",
+            "MyOwn Health Insurance": "https://www.myownhealth.com.au",
+            "Health Care Insurance (HCI)": "https://www.hciltd.com.au",
+            "Queensland Country Health": "https://www.qldcountry.health",
+            "Mildura Health Fund": "https://www.mildurahealthfund.com.au",
+            "National Health Benefits Australia (onemedifund)": "https://www.onemedifund.com.au",
+            "Defence Health": "https://www.defencehealth.com.au",
+            "Police Health": "https://www.policehealth.com.au",
+            "Teachers Health": "https://www.teachershealth.com.au",
+            "Navy Health": "https://www.navyhealth.com.au",
+            "Doctors' Health Fund": "https://www.doctorshealthfund.com.au",
+            "CBHS Health Fund": "https://www.cbhs.com.au",
+            "Reserve Bank Health Society": "https://www.rbhs.com.au",
+            "ACA Health Benefits Fund": "https://www.acahealth.com.au",
+            "RT Health Fund": "https://www.rthealth.com.au",
+            "Transport Health / Union Health": "https://www.unionhealth.com.au",
+        }
+        connection.set_session(autocommit=True)
+        updated_count = 0
+        for provider_name, url in provider_urls.items():
+            try:
+                cur.execute(
+                    """
+                    UPDATE insurance_products
+                    SET product_link = %s
+                    WHERE provider = %s AND (product_link IS NULL OR product_link = '')
+                    """,
+                    (url, provider_name),
+                )
+                if cur.rowcount > 0:
+                    updated_count += cur.rowcount
+            except Exception as e:
+                print(f"      Warning: Could not update {provider_name}: {e}")
+        connection.set_session(autocommit=False)
+        if updated_count > 0:
+            print(f"      Updated {updated_count} products with provider URLs")
+        else:
+            print("      No products needed URL updates")
+        
         print("✅ Migration complete")
 
     if os.environ.get("APPLY_PROJECT_SCHEMA", "false").lower() in {"1","true","yes"}:
@@ -204,8 +316,18 @@ try:
         # Insurance product
         product_id = insert_one(
             """
-            INSERT INTO insurance_products(name, coverage, premium, provider, product_link, insurance_type)
-            VALUES ('Basic Health Cover','General health cover', 99.90, 'MediCo', 'https://example.com/plan/basic', 'Health')
+            INSERT INTO insurance_products(
+              name, provider, product_link, insurance_type,
+              coverage, premium,
+              plan_type, monthly_premium, coverage_amount, annual_deductible,
+              copay, coinsurance, max_out_of_pocket, coverage_details, exclusions
+            )
+            VALUES (
+              'Basic Health Cover','MediCo','https://example.com/plan/basic','Health',
+              'General health cover', 99.90,
+              'HMO', 99.90, 150000, 3000,
+              25, 30, 7500, '["Hospitalization","Outpatient","Drugs"]'::jsonb, '["Cosmetic procedures"]'::jsonb
+            )
             ON CONFLICT DO NOTHING
             RETURNING id;
             """
@@ -226,8 +348,12 @@ try:
         if product_id and user_patient_id:
             quote_id = insert_one(
                 """
-                INSERT INTO quotes(suitability_score, cost, coverage_summary, insurance_product_id, patient_id)
-                VALUES (75, 89.50, 'Standard cover with extras', %s, %s)
+                INSERT INTO quotes(
+                  suitability_score, cost, cost_score, coverage_score, overall_score,
+                  coverage_summary, rationale, insurance_product_id, patient_id
+                )
+                VALUES (75, 89.50, 80, 70, 75,
+                        'Standard cover with extras', 'Baseline rules suggest suitability', %s, %s)
                 RETURNING id;
                 """,
                 (product_id, user_patient_id),

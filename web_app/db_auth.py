@@ -33,19 +33,23 @@ def fetch_user(username: str) -> Optional[dict]:
             cur.execute("SELECT id, username, email, password_hash, name FROM users WHERE username = %s", (username,))
             row = cur.fetchone()
             if not row:
+                print(f"[FETCH_USER] User not found: {username}")
                 return None
             user_id = row["id"]
+            password_hash_val = row.get("password_hash") or ""
+            print(f"[FETCH_USER] User found: {username}, id={user_id}, hash_len={len(password_hash_val)}, hash_prefix={password_hash_val[:30] if password_hash_val else 'N/A'}")
             # infer role
             cur.execute("SELECT 1 FROM doctors WHERE user_id = %s", (user_id,))
             role = "doctor" if cur.fetchone() else None
             if not role:
                 cur.execute("SELECT 1 FROM patients WHERE user_id = %s", (user_id,))
                 role = "patient" if cur.fetchone() else "patient"
+            print(f"[FETCH_USER] Role inferred: {role}")
             return {
                 "id": str(user_id),
                 "username": row["username"],
                 "email": row["email"],
-                "password_hash": row["password_hash"],
+                "password_hash": password_hash_val,
                 "display_name": row["name"],
                 "role": role,
             }
@@ -81,13 +85,20 @@ def fetch_user_by_id(user_id: str) -> Optional[dict]:
 
 def verify_password(stored_hash: str, plain_password: str) -> bool:
     """Accept hashed checks; if not hashed, allow DEFAULT_DB_PASSWORD (demo)."""
-    if stored_hash and stored_hash.startswith("pbkdf2:"):
+    if not stored_hash:
+        print(f"[VERIFY_PASSWORD] No stored hash provided")
+        return False
+    if stored_hash.startswith("pbkdf2:") or stored_hash.startswith("$pbkdf2") or stored_hash.startswith("scrypt:"):
         try:
-            return check_password_hash(stored_hash, plain_password)
-        except Exception:
+            result = check_password_hash(stored_hash, plain_password)
+            print(f"[VERIFY_PASSWORD] Hash check result: {result}, hash_type={stored_hash[:20]}")
+            return result
+        except Exception as e:
+            print(f"[VERIFY_PASSWORD] Error checking hash: {e}")
             return False
     # Demo mode: allow a default password for imported/mock rows
     default_pwd = os.environ.get("DEFAULT_DB_PASSWORD", "password123")
+    print(f"[VERIFY_PASSWORD] Hash doesn't match known patterns, checking against default password")
     return plain_password == default_pwd
 
 
