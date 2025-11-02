@@ -1614,6 +1614,29 @@ def get_pending_reviews_for_doctor(doctor_user_id: int) -> List[Dict[str, Any]]:
     """
     try:
         with _conn() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # First, let's verify what's in the database for debugging
+            cur.execute("""
+                SELECT 
+                    aa.id AS approval_id,
+                    aa.medical_record_id,
+                    aa.doctor_id,
+                    aa.decision,
+                    aa.signed_at,
+                    aa.created_at,
+                    mr.file_hash AS analysis_id
+                FROM ai_approvals aa
+                JOIN medical_records mr ON mr.id = aa.medical_record_id
+                WHERE aa.doctor_id = %s
+                ORDER BY aa.created_at DESC
+                LIMIT 10
+            """, (doctor_user_id,))
+            
+            all_reviews = cur.fetchall()
+            print(f"[Pending Reviews Debug] All reviews for doctor {doctor_user_id}:")
+            for r in all_reviews:
+                print(f"  - Approval {r.get('approval_id')}: decision={r.get('decision')}, signed_at={r.get('signed_at')}, analysis_id={r.get('analysis_id')}")
+            
+            # Now get only pending ones (signed_at IS NULL)
             cur.execute("""
                 SELECT 
                     aa.id AS approval_id,
@@ -1622,6 +1645,7 @@ def get_pending_reviews_for_doctor(doctor_user_id: int) -> List[Dict[str, Any]]:
                     aa.decision,
                     aa.notes,
                     aa.created_at AS requested_at,
+                    aa.signed_at,
                     mr.file_hash AS analysis_id,
                     mr.patient_id,
                     mr.document_type,
@@ -1635,12 +1659,15 @@ def get_pending_reviews_for_doctor(doctor_user_id: int) -> List[Dict[str, Any]]:
                 JOIN medical_records mr ON mr.id = aa.medical_record_id
                 JOIN users u ON u.id = mr.patient_id
                 WHERE aa.doctor_id = %s
-                AND aa.decision = 'NeedsChanges'  -- Pending reviews
-                AND aa.signed_at IS NULL  -- Not yet reviewed
+                AND aa.signed_at IS NULL  -- Not yet reviewed (this is the key filter)
                 ORDER BY aa.created_at DESC
             """, (doctor_user_id,))
             
             reviews = cur.fetchall()
+            print(f"[Pending Reviews] Found {len(reviews)} pending reviews for doctor {doctor_user_id}")
+            for r in reviews:
+                print(f"  - Pending: approval_id={r.get('approval_id')}, analysis_id={r.get('analysis_id')}, signed_at={r.get('signed_at')}")
+            
             return [dict(review) for review in reviews] if reviews else []
     except Exception as e:
         print(f"[RDS] Error fetching pending reviews: {e}")
@@ -1679,6 +1706,16 @@ def update_approval_decision_in_rds(approval_id: int, doctor_user_id: int,
             
             # Update the approval decision
             update_time = signed_at or datetime.now()
+            
+            # First verify current state
+            cur.execute("""
+                SELECT id, decision, signed_at FROM ai_approvals 
+                WHERE id = %s AND doctor_id = %s
+            """, (approval_id, doctor_user_id))
+            before = cur.fetchone()
+            if before:
+                print(f"[RDS Update] Before update - approval {approval_id}: decision={before[1]}, signed_at={before[2]}")
+            
             cur.execute("""
                 UPDATE ai_approvals
                 SET decision = %s::approval_decision,
@@ -1687,8 +1724,23 @@ def update_approval_decision_in_rds(approval_id: int, doctor_user_id: int,
                 WHERE id = %s AND doctor_id = %s
             """, (decision, notes, update_time, approval_id, doctor_user_id))
             
+            rows_updated = cur.rowcount
             conn.commit()
-            print(f"[RDS] Updated approval {approval_id}: decision={decision}, signed_at={update_time}")
+            
+            # Verify after update
+            cur.execute("""
+                SELECT id, decision, signed_at FROM ai_approvals 
+                WHERE id = %s AND doctor_id = %s
+            """, (approval_id, doctor_user_id))
+            after = cur.fetchone()
+            if after:
+                print(f"[RDS Update] After update - approval {approval_id}: decision={after[1]}, signed_at={after[2]}, rows_updated={rows_updated}")
+            
+            if rows_updated == 0:
+                print(f"[RDS Update] ⚠️ WARNING: No rows updated for approval {approval_id}")
+                return False
+            
+            print(f"[RDS] ✅ Updated approval {approval_id}: decision={decision}, signed_at={update_time}")
             return True
             
     except Exception as e:

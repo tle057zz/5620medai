@@ -2576,34 +2576,9 @@ def pending_ai_reviews():
                     review_dict['review_info'] = review
                     pending_analyses.append(review_dict)
         
-        # Fallback to in-memory pending reviews if no DB reviews found (for backward compatibility)
-        if not pending_analyses:
-            pending_ids = get_pending_reviews()
-            for analysis_id in pending_ids:
-                result = get_analysis_result(analysis_id)
-                if result:
-                    review_package = create_review_package(result)
-                    # Convert dataclass to dict for consistency
-                    try:
-                        from dataclasses import asdict
-                        review_dict = asdict(review_package)
-                    except Exception:
-                        # Fallback: manually convert if asdict fails
-                        review_dict = {
-                            'analysis_id': review_package.analysis_id,
-                            'patient_id': review_package.patient_id,
-                            'document_type': review_package.document_type,
-                            'processed_at': review_package.processed_at,
-                            'fhir_data': review_package.fhir_data,
-                            'summary_md': review_package.summary_md,
-                            'risks_md': review_package.risks_md,
-                            'safety_flags': [{'flag_id': f.flag_id, 'severity': f.severity.value if hasattr(f.severity, 'value') else str(f.severity), 'description': f.description} for f in review_package.safety_flags] if review_package.safety_flags else [],
-                            'overall_confidence': review_package.overall_confidence,
-                            'low_confidence_areas': review_package.low_confidence_areas,
-                            'has_critical_flags': review_package.has_critical_flags,
-                            'requires_mandatory_override': review_package.requires_mandatory_override,
-                        }
-                    pending_analyses.append(review_dict)
+        # NO FALLBACK to in-memory reviews - we only use database now
+        # This ensures reviews disappear immediately after submission
+        print(f"[Pending AI Reviews] Returning {len(pending_analyses)} reviews from database")
         
         return render_template('pending_ai_reviews.html',
                              pending_analyses=pending_analyses,
@@ -2708,6 +2683,19 @@ def review_ai_output(analysis_id):
                     if success:
                         print(f"[Review Submit] ✅ Successfully updated approval {approval_id} in database with status: {db_decision}")
                         
+                        # Verify the update is visible by querying immediately
+                        cur.execute("""
+                            SELECT signed_at FROM ai_approvals 
+                            WHERE id = %s AND doctor_id = %s
+                        """, (approval_id, int(str(current_user.id))))
+                        verify_row = cur.fetchone()
+                        if verify_row:
+                            # RealDictCursor returns dict-like objects, so use key access
+                            signed_at_value = verify_row.get('signed_at') if isinstance(verify_row, dict) else verify_row[0]
+                            print(f"[Review Submit] Verification: approval {approval_id} signed_at={signed_at_value}")
+                            if signed_at_value is None:
+                                print(f"[Review Submit] ⚠️ WARNING: signed_at is still NULL after update!")
+                        
                         # Flash message
                         if status_value == 'approved':
                             flash('✓ Review approved. Status updated in database.', 'success')
@@ -2730,7 +2718,9 @@ def review_ai_output(analysis_id):
             traceback.print_exc()
             flash(f'Error updating status: {str(e)}', 'danger')
         
-        return redirect(url_for('pending_ai_reviews'))
+        # Force redirect with cache-busting parameter to ensure fresh data
+        from flask import redirect, url_for
+        return redirect(url_for('pending_ai_reviews', _external=False) + '?t=' + str(datetime.now().timestamp()))
     
     # Convert review_package to dict for template
     try:
