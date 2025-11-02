@@ -1,3 +1,6 @@
 SAFETY SUMMARY
 
-Summary: No red flags detected
+Summary: 1 high risk, 0 moderate risk, 0 abnormal vital findings
+
+High Risk
+  • History of stroke with concurrent hypertension consider secondary prevention and BP control
