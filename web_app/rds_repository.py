@@ -1928,3 +1928,35 @@ def get_review_history_from_rds(doctor_user_id: int = None, limit: int = 1000) -
         traceback.print_exc()
         return []
 
+
+def update_user_password(user_id: int, new_password_hash: str) -> bool:
+    """
+    Update user's password in the database.
+    
+    Args:
+        user_id: The user's ID (integer)
+        new_password_hash: The hashed password (already hashed with werkzeug.security.generate_password_hash)
+    
+    Returns:
+        True if update was successful, False otherwise
+    """
+    try:
+        with _conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE id = %s",
+                (new_password_hash, user_id)
+            )
+            conn.commit()
+            
+            if cur.rowcount > 0:
+                print(f"[RDS] Successfully updated password for user {user_id}")
+                return True
+            else:
+                print(f"[RDS] No user found with id {user_id} to update password")
+                return False
+    except Exception as e:
+        print(f"[RDS] Error updating password for user {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+

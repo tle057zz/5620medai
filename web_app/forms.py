@@ -259,3 +259,26 @@ class SignupForm(FlaskForm):
         if self.role.data == 'doctor' and not field.data:
             raise ValidationError('Specialization is required for doctor accounts.')
 
+
+class ChangePasswordForm(FlaskForm):
+    """Form for changing user password"""
+    current_password = PasswordField('Current Password',
+                                   validators=[DataRequired()],
+                                   render_kw={'placeholder': 'Enter your current password', 'autofocus': True})
+    
+    new_password = PasswordField('New Password',
+                               validators=[
+                                   DataRequired(),
+                                   Length(min=8, message='Password must be at least 8 characters long')
+                               ],
+                               render_kw={'placeholder': 'Enter your new password'})
+    
+    confirm_password = PasswordField('Confirm New Password',
+                                   validators=[
+                                       DataRequired(),
+                                       EqualTo('new_password', message='Passwords must match')
+                                   ],
+                                   render_kw={'placeholder': 'Confirm your new password'})
+    
+    submit = SubmitField('Change Password')
+

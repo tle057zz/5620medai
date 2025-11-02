@@ -19,7 +19,7 @@ from db_auth import (
     verify_password as db_verify_password,
     split_name_for_display as db_split_name,
 )
-from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm, SignupForm
+from forms import LoginForm, InsuranceQuoteForm, ClinicalRecordAnalysisForm, SignupForm, ChangePasswordForm
 from insurance_models import (
     QuoteRequest, HealthData, MedicalHistory, IncomeDetails,
     save_quote_request, get_quote_request, get_user_quote_requests
@@ -67,6 +67,7 @@ from rds_repository import (
     get_pending_reviews_for_doctor,
     get_review_status_for_analysis,
     update_approval_decision_in_rds,
+    update_user_password,
 )
 from doctor_recommender import recommend_doctors
 try:
@@ -316,6 +317,90 @@ def login():
         flash('Invalid username or password. Please try again.', 'danger')
     
     return render_template('login.html', form=form)
+
+
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Allow users to change their password"""
+    form = ChangePasswordForm()
+    
+    if form.validate_on_submit():
+        # Get current password
+        current_password = form.current_password.data
+        new_password = form.new_password.data
+        
+        # Verify current password
+        user_id = current_user.id
+        user_found = False
+        password_correct = False
+        
+        # Try to verify password from database first
+        try:
+            db_user = db_fetch_user_by_id(str(user_id))
+            if db_user:
+                user_found = True
+                # Verify current password
+                password_correct = db_verify_password(db_user['password_hash'], current_password)
+                print(f"[CHANGE-PASSWORD] User found in DB: {db_user['username']}, password_correct: {password_correct}")
+        except Exception as e:
+            print(f"[CHANGE-PASSWORD] Error fetching user from DB: {e}")
+        
+        # If not in DB, try in-memory storage
+        if not user_found:
+            try:
+                from models import get_user_by_username
+                in_mem_user = get_user_by_username(current_user.username)
+                if in_mem_user:
+                    user_found = True
+                    password_correct = in_mem_user.check_password(current_password)
+                    print(f"[CHANGE-PASSWORD] User found in-memory: {in_mem_user.username}, password_correct: {password_correct}")
+            except Exception as e:
+                print(f"[CHANGE-PASSWORD] Error fetching user from in-memory: {e}")
+        
+        if not password_correct:
+            flash('Current password is incorrect. Please try again.', 'danger')
+            return render_template('change_password.html', form=form)
+        
+        # Current password is correct, proceed with password change
+        new_password_hash = generate_password_hash(new_password)
+        
+        # Update password in database
+        db_updated = False
+        try:
+            # Convert user_id to int for database operation
+            user_id_int = int(user_id) if isinstance(user_id, (int, str)) and str(user_id).isdigit() else None
+            
+            if user_id_int:
+                db_updated = update_user_password(user_id_int, new_password_hash)
+                if db_updated:
+                    print(f"[CHANGE-PASSWORD] Password updated in database for user {user_id_int}")
+        except Exception as e:
+            print(f"[CHANGE-PASSWORD] Error updating password in DB: {e}")
+        
+        # Update password in in-memory storage
+        in_mem_updated = False
+        try:
+            from models import get_user_by_username, example_users
+            in_mem_user = get_user_by_username(current_user.username)
+            if in_mem_user:
+                in_mem_user.password_hash = new_password_hash
+                # Also update in example_users dict if it exists
+                if current_user.username in example_users:
+                    example_users[current_user.username].password_hash = new_password_hash
+                in_mem_updated = True
+                print(f"[CHANGE-PASSWORD] Password updated in-memory for user {current_user.username}")
+        except Exception as e:
+            print(f"[CHANGE-PASSWORD] Error updating password in-memory: {e}")
+        
+        if db_updated or in_mem_updated:
+            flash('Password changed successfully!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Error updating password. Please try again or contact support.', 'danger')
+            return render_template('change_password.html', form=form)
+    
+    return render_template('change_password.html', form=form)
 
 
 @app.route('/logout')
@@ -2343,7 +2428,14 @@ def view_doctor_profile(doctor_user_id):
 @role_required('doctor', 'patient')
 def delete_clinical_analysis(analysis_id):
     """
-    Delete a clinical analysis from RDS and in-memory storage
+    Delete a clinical analysis - COMING SOON
+    Currently shows a "Coming Soon" message instead of deleting
+    """
+    flash('Delete functionality is coming soon! This feature is currently under development.', 'info')
+    return redirect(url_for('clinical_analysis_history'))
+    
+    # TODO: Original delete functionality will be restored here in the future
+    # The code below is commented out but preserved for future implementation:
     """
     try:
         # Get user ID for ownership verification
@@ -2404,6 +2496,7 @@ def delete_clinical_analysis(analysis_id):
         flash(f'Error deleting analysis: {str(e)}', 'danger')
     
     return redirect(url_for('clinical_analysis_history'))
+    """
 
 
 # ================================

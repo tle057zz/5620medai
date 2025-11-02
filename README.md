@@ -69,6 +69,8 @@ Built with **Flask**, **PostgreSQL (AWS RDS)**, and integrated with local LLM mo
 
 ## 🚀 Quick Start
 
+> **📌 FOR GRADERS**: The application **MUST** be run from the `web_app/` directory. See [🚀 Running the Application](#-running-the-application) section for detailed instructions.
+
 ### Prerequisites
 
 - **Python 3.10+**
@@ -105,20 +107,93 @@ python -m spacy download en_ner_bc5cdr_md
 
 5. **Configure database** (see [Database Setup](#-database-setup))
 
-6. **Run the application**
+6. **Run the application** (see detailed instructions in [🚀 Running the Application](#-running-the-application) section)
+   
+   **⚠️ CRITICAL FOR GRADERS**: 
    ```bash
+   # You MUST navigate to web_app directory first
    cd web_app
+   
+   # Then run the application
    python app.py
    ```
+   
+   See the [Running the Application](#-running-the-application) section below for complete details.
 
 7. **Set up Ollama (Optional, for AI explanations)**
    ```bash
    # See detailed instructions in "Ollama Setup" section below
    ```
 
-8. **Access the application**
-   - Open: `http://127.0.0.1:5000`
-   - Login with demo credentials (see below)
+---
+
+## 🚀 Running the Application
+
+### ⚠️ CRITICAL: How to Start the Web Application
+
+**FOR GRADERS**: Follow these exact steps to run the application:
+
+1. **Navigate to the `web_app` directory** (this is REQUIRED):
+   ```bash
+   cd web_app
+   ```
+
+2. **Start the Flask server**:
+   ```bash
+   python app.py
+   ```
+   
+   **OR if using Python 3 explicitly:**
+   ```bash
+   python3 app.py
+   ```
+
+3. **Look for this output** confirming the server started:
+   ```
+   🌐 Server starting at: http://127.0.0.1:5000
+   * Debugger is active!
+   * Running on http://127.0.0.1:5000
+   Press CTRL+C to stop the server
+   ```
+
+4. **Open your browser** and navigate to:
+   ```
+   http://127.0.0.1:5000
+   ```
+
+5. **Login** with demo credentials (see [Demo Credentials](#-demo-credentials) below)
+
+---
+
+### ⚠️ Common Mistakes
+
+❌ **WRONG**: Running from project root
+```bash
+# DON'T DO THIS:
+cd /path/to/5620medai
+python app.py  # ❌ This will fail with import errors
+```
+
+✅ **CORRECT**: Running from web_app directory
+```bash
+# DO THIS:
+cd /path/to/5620medai/web_app
+python app.py  # ✅ This works!
+```
+
+### Troubleshooting
+
+**Issue**: `ModuleNotFoundError` or `ImportError` when running `python app.py`
+- **Solution**: Make sure you're in the `web_app/` directory
+- Check: `pwd` should show `.../5620medai/web_app`
+
+**Issue**: `No module named 'flask'`
+- **Solution**: Activate your virtual environment first
+- Run: `source venv/bin/activate` (or `venv\Scripts\activate` on Windows)
+
+**Issue**: Port 5000 already in use
+- **Solution**: Kill the process using port 5000 or use a different port
+- Change port: Edit `web_app/app.py` line `app.run(port=5001)` (or any available port)
 
 ---
 
@@ -295,6 +370,27 @@ password123
 | **Admin** | `it.admin` | IT administrator |
 
 **Note**: 20+ mock doctors are available with various specializations. All use password `password123`.
+
+### Admin Access - View All Users
+
+To view all users in the system:
+
+1. **Login as admin**:
+   - Username: `admin`
+   - Password: `password123`
+
+2. **Access User Management**:
+   - After logging in, navigate to the **Admin Dashboard**
+   - Click on the **"Users"** menu item in the navigation bar
+   - Or go directly to: `http://127.0.0.1:5000/admin/users`
+
+3. **Features Available**:
+   - View all registered users (patients, doctors, admins)
+   - View complete doctor profiles (specialization, AHPRA number, approval status)
+   - Approve/reject doctor registrations
+   - See user statistics and system overview
+
+**Alternative Admin Account**: You can also use `it.admin` with password `password123` for admin access.
 
 ---
 
