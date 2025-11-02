@@ -1,34 +1,146 @@
-# === Core PDF & OCR ===
-pdfplumber
-pytesseract
-pdf2image
-Pillow
+# ============================================================================
+# Clinical AI Assistance System - Complete Requirements
+# ============================================================================
+# Install with: pip install -r requirements.txt
+# 
+# This includes all dependencies for the full web application:
+# - Flask web framework and authentication
+# - Database connectivity (PostgreSQL)
+# - AI/ML pipeline (OCR, NER, Entity Linking, FHIR mapping)
+# - PDF processing and document analysis
+# - Optional LLM integration (Ollama)
+# ============================================================================
 
-# === NLP & Clinical Models ===
-spacy
-scispacy
-medspacy
-https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.1/en_core_sci_sm-0.5.1.tar.gz
-https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.1/en_ner_bc5cdr_md-0.5.1.tar.gz
+# ----------------------------------------------------------------------------
+# Core Web Framework
+# ----------------------------------------------------------------------------
+Flask==3.0.0
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+Flask-SQLAlchemy==3.1.1
+WTForms==3.1.1
+Werkzeug==3.0.1
 
-# === Embedding & Ontology Linking ===
-torch
-sentence-transformers
-pandas
-numpy
-quickumls
+# ----------------------------------------------------------------------------
+# Database & ORM
+# ----------------------------------------------------------------------------
+SQLAlchemy==2.0.23
+psycopg2-binary>=2.9.0
 
-# === Web / API Framework (Optional) ===
-fastapi
-uvicorn
-python-multipart
-pydantic
-requests
+# ----------------------------------------------------------------------------
+# PDF Processing & OCR
+# ----------------------------------------------------------------------------
+pdfplumber>=0.11.4
+pytesseract>=0.3.13
+pdf2image>=1.17.0
+Pillow>=10.1.0
+PyMuPDF>=1.23.8
 
-# === LLM Integration (Optional) ===
-ollama
-openai
+# ----------------------------------------------------------------------------
+# AI/ML Pipeline (Clinical NLP)
+# ----------------------------------------------------------------------------
+# SpaCy and medical NER models
+spacy>=3.7.0
+# Install models with:
+# python -m spacy download en_core_sci_sm
+# python -m spacy download en_ner_bc5cdr_md
 
-# === General Utilities ===
-regex
-tqdm
+# Entity linking with sentence transformers
+torch>=2.0.0
+sentence-transformers>=2.2.0
+transformers>=4.30.0
+
+# ----------------------------------------------------------------------------
+# Data Processing
+# ----------------------------------------------------------------------------
+pandas>=2.1.4
+numpy>=1.24.0
+
+# ----------------------------------------------------------------------------
+# Optional: LLM Integration (Ollama)
+# ----------------------------------------------------------------------------
+# Ollama is installed separately as a system service (not a Python package)
+# 
+# INSTALLATION INSTRUCTIONS:
+# 
+# macOS:
+#   brew install ollama
+# 
+# Linux:
+#   curl -fsSL https://ollama.ai/install.sh | sh
+# 
+# Windows:
+#   Download installer from: https://ollama.ai/download
+# 
+# AFTER INSTALLATION:
+#   1. Start Ollama service: ollama serve
+#   2. Pull the required model: ollama pull mistral:7b-instruct
+#   3. Verify: ollama list | grep mistral
+# 
+# The application works without Ollama, but AI explanations will use fallback text
+# No Python package needed - uses subprocess to call 'ollama' binary
+
+# ----------------------------------------------------------------------------
+# Utilities & Configuration
+# ----------------------------------------------------------------------------
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+
+# ----------------------------------------------------------------------------
+# Optional: PDF Export (WeasyPrint)
+# ----------------------------------------------------------------------------
+# Uncomment if you want PDF export functionality:
+# WeasyPrint>=60.0
+# Note: Requires system dependencies (libcairo2, libpango, etc.)
+# On macOS: brew install cairo pango gdk-pixbuf libffi
+# On Ubuntu: sudo apt-get install libcairo2 libpango-1.0-0 libpangoft2-1.0-0
+
+# ----------------------------------------------------------------------------
+# Development & Testing (Optional)
+# ----------------------------------------------------------------------------
+# Uncomment for development:
+# pytest>=7.4.0
+# pytest-flask>=1.2.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# ============================================================================
+# Installation Notes
+# ============================================================================
+# 
+# 1. Create virtual environment:
+#    python3 -m venv venv
+#    source venv/bin/activate  # On Windows: venv\Scripts\activate
+#
+# 2. Install requirements:
+#    pip install -r requirements.txt
+#
+# 3. Install SpaCy models:
+#    python -m spacy download en_core_sci_sm
+#    python -m spacy download en_ner_bc5cdr_md
+#
+# 4. Install system dependencies for OCR (if needed):
+#    - Tesseract OCR: https://github.com/tesseract-ocr/tesseract
+#    - Poppler (for pdf2image): https://poppler.freedesktop.org/
+#
+# 5. Optional: Install Ollama for AI explanations:
+#    
+#    macOS:
+#      brew install ollama
+#    
+#    Linux:
+#      curl -fsSL https://ollama.ai/install.sh | sh
+#    
+#    Windows:
+#      Download from: https://ollama.ai/download
+#    
+#    Then pull the required model:
+#      ollama serve                    # Start Ollama service (background)
+#      ollama pull mistral:7b-instruct # Download model (~4GB, one-time)
+#      ollama list                     # Verify model is installed
+#    
+#    Note: Model requires ~8GB RAM. First run may take 30-60s to load.
+#    See README.md "Ollama Setup" section for detailed instructions.
+#
+# ============================================================================
+

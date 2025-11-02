@@ -150,25 +150,25 @@
                                     <th>Timestamp</th>
                                     <th>Overrides</th>
                                     <th>Released</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for decision in decisions %}
+                                {% set timestamp_date = decision.timestamp.strftime('%Y-%m-%d') if decision.timestamp and decision.timestamp != 'None' else 'N/A' %}
                                 <tr data-status="{{ decision.status.value }}" 
                                     data-reviewer="{{ decision.reviewer_name }}" 
-                                    data-date="{% if decision.timestamp and hasattr(decision.timestamp, 'strftime') %}{{ decision.timestamp.strftime('%Y-%m-%d') }}{% else %}N/A{% endif %}">
+                                    data-date="{{ timestamp_date }}">
                                     <!-- Decision ID -->
                                     <td>
                                         <small class="font-monospace">
-                                            {{ decision.decision_id[:12] }}...
+                                            {{ decision.decision_id }}
                                         </small>
                                     </td>
                                     
                                     <!-- Analysis ID -->
                                     <td>
                                         <small class="font-monospace">
-                                            {{ decision.analysis_id[:12] }}...
+                                            {{ decision.analysis_id }}
                                         </small>
                                     </td>
                                     
@@ -204,7 +204,7 @@
                                     <!-- Timestamp -->
                                     <td>
                                         {% if decision.timestamp %}
-                                        <small>{{ decision.timestamp.strftime('%Y-%m-%d %H:%M') if hasattr(decision.timestamp, 'strftime') else decision.timestamp }}</small>
+                                        <small>{{ decision.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
                                         {% else %}
                                         <small class="text-muted">N/A</small>
                                         {% endif %}
@@ -230,14 +230,6 @@
                                         {% else %}
                                         <span class="badge bg-secondary">No</span>
                                         {% endif %}
-                                    </td>
-                                    
-                                    <!-- Actions -->
-                                    <td>
-                                        <a href="{{ url_for('view_approval_decision', decision_id=decision.decision_id) }}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View
-                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}

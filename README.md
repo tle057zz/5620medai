@@ -1,196 +1,627 @@
-# 🧠 AI-Driven Medical Document Intelligence Pipeline  
-### FHIR-Compliant Clinical AI System
+# 🏥 Clinical AI Assistance System
+
+**A comprehensive web-based platform for AI-driven clinical document analysis, insurance quote matching, and medical data management.**
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![Flask](https://img.shields.io/badge/Flask-3.0.0-green)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-AWS%20RDS-blue)
 ![FHIR](https://img.shields.io/badge/FHIR-R4-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
 
-## 🩺 Overview
+## 📖 Overview
 
-The **AI-Driven Medical Document Intelligence Pipeline** automatically processes unstructured clinical PDFs into structured, FHIR-compliant medical data.  
-It performs OCR, section segmentation, entity extraction, ontology linking, FHIR mapping, natural-language explanations, and red-flag safety checks — all locally, with deterministic outputs.
+The **Clinical AI Assistance System** is a full-stack web application that combines:
+- **AI-Powered Medical Document Analysis** - 8-stage clinical pipeline (OCR → FHIR → Safety)
+- **Insurance Quote Matching** - AI-driven health insurance recommendations
+- **Doctor-Patient Workflow** - Review, approval, and collaboration tools
+- **Financial Assistance** - Loan matching and financial aid recommendations
+- **Role-Based Access Control** - Secure multi-role authentication
 
-Built entirely in **Python**, this pipeline supports real-world clinical document analysis and interoperability without cloud dependencies.
-
----
-
-## 📂 Folder Structure
-
-```
-ai_medical/
-│
-├── ocr/                → extract_text.py        # Day 1: OCR text extraction
-├── sectionizer/        → sectionize_text.py     # Day 2: Logical text segmentation
-├── ner/                → extract_entities.py    # Day 3: Clinical NER (SpaCy + BC5CDR)
-├── linker/             → entity_linking.py      # Day 4: Ontology linking (SapBERT)
-├── fhir_mapper/        → fhir_mapping.py        # Day 5: FHIR R4 Bundle generator
-├── explain/            → generate_explanation.py# Day 6: Plain & fluent explanations
-├── safety/             → safety_check.py        # Day 7: Safety & red-flag analyzer
-└── requirements.txt
-```
-
-Each module runs independently or as part of the full end-to-end pipeline.
+Built with **Flask**, **PostgreSQL (AWS RDS)**, and integrated with local LLM models via **Ollama**.
 
 ---
 
-## ⚙️ Installation & Setup
+## ✨ Key Features
+
+### 🔬 AI Clinical Document Analysis (Use Case 2)
+- **8-Stage Medical Pipeline**:
+  1. OCR - Extract text from PDFs/images
+  2. Sectionizer - Segment document into medical sections
+  3. NER - Named Entity Recognition (conditions, medications, allergies)
+  4. Entity Linking - Map to SNOMED-CT, RxNorm, ICD-10-AM
+  5. FHIR Mapping - Generate FHIR R4 compliant resources
+  6. Explanation Generation - Patient-friendly summaries
+  7. Safety Checker - Detect red flags and contraindications
+  8. Mistral LLM Analysis - AI-powered clinical insights
+- **Real-time Progress Tracking** - Live progress bars with step-by-step updates
+- **History Management** - View past analyses with file downloads
+- **Doctor Recommendations** - AI suggests suitable doctors for review
+
+### 💊 Insurance Quote Generation (Use Case 3)
+- **AI-Powered Matching** - 30+ Australian private health insurance funds
+- **Medical History Integration** - Personalized quotes based on health data
+- **Cost Breakdown Analysis** - Detailed premium and coverage comparisons
+- **AI Explanations** - "Why This Plan?" insights using Mistral:7b-instruct
+- **Quote History** - View and compare past quote requests
+- **PDF/HTML Export** - Download quote summaries
+
+### 👨‍⚕️ Doctor-Patient Collaboration
+- **Review Workflow** - Patients request doctor reviews of AI analysis
+- **Approval System** - Doctors approve/reject/escalate clinical findings
+- **Pending Reviews Dashboard** - Track all review requests
+- **Review History** - Complete audit trail of all decisions
+- **Digital Signatures** - Secure approval tracking
+
+### 💰 Financial Assistance (Use Case 4)
+- **Loan Matching** - AI-powered loan recommendations
+- **Financial Profile Analysis** - Income and expense assessment
+- **Assistance Eligibility** - Government and private aid matching
+
+### 🔐 User Management
+- **Multi-Role System** - Patients, Doctors, Admins
+- **User Registration** - Self-service signup with role selection
+- **Doctor Approval Workflow** - Admin approval required for doctor accounts
+- **Session Persistence** - Remember-me functionality across restarts
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- **Python:** 3.10+
-- **System tools:** `tesseract-ocr`, `poppler` (for PDF to image conversion)
 
-### 1️⃣ Create environment
+- **Python 3.10+**
+- **PostgreSQL** (or AWS RDS access)
+- **System Dependencies** (for OCR):
+  - Tesseract OCR: `brew install tesseract` (macOS) or `apt-get install tesseract-ocr` (Linux)
+  - Poppler: `brew install poppler` (macOS) or `apt-get install poppler-utils` (Linux)
+- **Optional**: Ollama for AI explanations (see [Ollama Setup](#-ollama-setup) below)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd 5620medai
+   ```
+
+2. **Create virtual environment**
 ```bash
-conda create -n medai python=3.10
-conda activate medai
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 2️⃣ Install dependencies
+3. **Install dependencies**
 ```bash
-pip install -r ai_medical/requirements.txt
+   pip install -r requirements.txt
 ```
 
-### 3️⃣ Optional models
+4. **Install SpaCy models**
 ```bash
 python -m spacy download en_core_sci_sm
 python -m spacy download en_ner_bc5cdr_md
 ```
 
----
+5. **Configure database** (see [Database Setup](#-database-setup))
 
-## 🧩 Core Features
+6. **Run the application**
+   ```bash
+   cd web_app
+   python app.py
+   ```
 
-1. **End-to-End Clinical Pipeline** — from unstructured PDF → FHIR → Safety analysis  
-2. **Deterministic JSON Outputs** — reproducible structured artifacts  
-3. **Ontology-Aware Linking** — SNOMED-CT, RxNorm, and LOINC integration via SapBERT  
-4. **FHIR-Compliant Mapping** — generates valid FHIR R4 bundles  
-5. **Plain-Language Explanations** — readable summaries from clinical data  
-6. **Safety & Risk Engine** — flags comorbidities, contraindications, and abnormal vitals  
-7. **Grounded LLM Integration** — Mistral (Ollama) optional for factual summaries  
+7. **Set up Ollama (Optional, for AI explanations)**
+   ```bash
+   # See detailed instructions in "Ollama Setup" section below
+   ```
 
----
-
-## 🧠 Pipeline Execution
-
-Each module may be executed sequentially as follows:
-
-| Step | Module | Command | Output |
-|------|---------|----------|---------|
-| 1 | **OCR** | `python ai_medical/ocr/extract_text.py` | `Sampleocr_output.txt` |
-| 2 | **Sectionizer** | `python ai_medical/sectionizer/sectionize_text.py` | `sectionized_output.json` |
-| 3 | **NER** | `python ai_medical/ner/extract_entities.py` | `ner_output_final.json` |
-| 4 | **Entity Linking** | `python ai_medical/linker/entity_linking.py` | `linked_entities.json` |
-| 5 | **FHIR Mapper** | `python ai_medical/fhir_mapper/fhir_mapping.py` | `fhir_bundle.json` |
-| 6 | **Explanation Generator** | `python ai_medical/explain/generate_explanation.py` | `explanation.json`, `explanation.txt`, `explanation_fluent.txt` |
-| 7 | **Safety Checker** | `python ai_medical/safety/safety_check.py` | `safety_report.json`, `safety_summary.txt`, `safety_fluent.txt` |
+8. **Access the application**
+   - Open: `http://127.0.0.1:5000`
+   - Login with demo credentials (see below)
 
 ---
 
-## 📖 Example Output Summary
+## 🤖 Ollama Setup (Optional)
 
-| Module | Input | Output |
-|---------|--------|--------|
-| OCR | Clinical PDF | Extracted text |
-| Sectionizer | OCR text | Structured sections JSON |
-| NER | Section JSON | Entities with labels & confidence |
-| Linker | NER JSON | Linked entities with ontology codes |
-| FHIR Mapper | Linked JSON | FHIR R4 Bundle |
-| Explanation | FHIR Bundle | Plain & fluent patient summaries |
-| Safety | FHIR Bundle | Structured red-flag report |
+**Ollama** is required for AI-powered explanations in insurance quotes and clinical analysis. The application will work without Ollama, but will use fallback text instead of AI-generated explanations.
 
----
+### Installation
 
-## 🧬 Technical Highlights
-
-- **Dual-Model NER Fusion:** combines SpaCy & BC5CDR results, merging spans and labels  
-- **Clinical Filtering:** eliminates false positives for chemical and context terms  
-- **FHIR Schema Construction:** auto-generates Patient, Practitioner, Condition, Observation, Procedure, Encounter  
-- **Grounded LLM Summaries:** Mistral receives JSON-bounded facts, preventing hallucinations  
-- **Safety Rules Engine:** detects  
-  - *Stroke + Hypertension* → High risk  
-  - *NSAID + CKD* → Nephrotoxicity risk (low-dose aspirin exception)  
-  - *Beta-blocker + Asthma* → Bronchospasm risk  
-  - *RAAS blocker + Hyperkalemia* → Arrhythmia risk  
-- **Unit Normalization:** converts mg/dL → mmol/L for glucose, mg/dL → µmol/L for creatinine  
-- **DetectedIssue Support:** ingests upstream FHIR warnings into safety notes  
-
----
-
-## 🧪 Example: End-to-End Run
-
+#### macOS
 ```bash
-cd ai_medical
-python ocr/extract_text.py
-python sectionizer/sectionize_text.py
-python ner/extract_entities.py
-python linker/entity_linking.py
-python fhir_mapper/fhir_mapping.py
-python explain/generate_explanation.py
-python safety/safety_check.py
+# Using Homebrew (recommended)
+brew install ollama
+
+# Or download from website
+# Visit: https://ollama.ai/download
 ```
 
-**Resulting outputs:**
-- `fhir_bundle.json` → Complete FHIR R4 patient record  
-- `explanation.txt` → Human-readable factual summary  
-- `safety_summary.txt` → Deterministic red-flag risk report  
-
----
-
-## 🔒 Data Safety & Ethics
-
-- No cloud APIs — runs entirely offline.  
-- All data retained locally; no PHI transmission.  
-- Deterministic LLM prompts prevent hallucination.  
-- Complies with HL7 FHIR R4 structure for interoperability with EMRs.
-
----
-
-## 🧱 Design Principles
-
-- ✅ **Deterministic & Reproducible**  
-- ✅ **Path-independent (OS-agnostic)**  
-- ✅ **Modular JSON pipeline (no databases)**  
-- ✅ **Explainable & Auditable outputs**  
-- ✅ **FHIR-compliant interoperability**
-
----
-
-## ⚡ Optional API Deployment
-
-You can serve the pipeline via **FastAPI**:
-
+#### Linux
 ```bash
-pip install fastapi uvicorn
-uvicorn ai_medical.api:app --reload
+# Using the installation script
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Or download from website
+# Visit: https://ollama.ai/download
 ```
 
-*(API router not included by default; add endpoints wrapping each module as needed.)*
+#### Windows
+```bash
+# Download the installer from:
+# https://ollama.ai/download
+
+# Run the installer and follow the setup wizard
+```
+
+### Start Ollama Service
+
+After installation, start the Ollama service:
+
+```bash
+# macOS/Linux - start as background service
+ollama serve
+
+# Or on macOS with Homebrew, it may auto-start as a service
+# Check with: brew services list | grep ollama
+```
+
+### Pull Mistral Model
+
+Download the `mistral:7b-instruct` model used by the application:
+
+```bash
+# Pull the model (this will download ~4GB)
+ollama pull mistral:7b-instruct
+
+# Verify installation
+ollama list
+
+# Test the model
+ollama run mistral:7b-instruct "Hello, this is a test."
+```
+
+### Verify Installation
+
+Test that Ollama is working:
+
+```bash
+# Check if ollama is in PATH
+which ollama
+
+# Check Ollama version
+ollama --version
+
+# List available models
+ollama list
+
+# Verify mistral:7b-instruct is available
+ollama show mistral:7b-instruct
+```
+
+### Configuration
+
+The application automatically detects Ollama if it's in your system PATH. To specify a custom path:
+
+```bash
+# In web_app/.env file
+OLLAMA_BIN=/custom/path/to/ollama
+```
+
+### Troubleshooting
+
+**Issue**: `ollama: command not found`
+- **Solution**: Ensure Ollama is installed and in your system PATH
+- Add Ollama to PATH if needed: `export PATH=$PATH:/path/to/ollama`
+
+**Issue**: Model not found when running the app
+- **Solution**: Ensure you've run `ollama pull mistral:7b-instruct`
+- Verify with: `ollama list | grep mistral`
+
+**Issue**: Ollama service not running
+- **Solution**: Start the service: `ollama serve` (or restart if already running)
+- Check if port 11434 is available: `lsof -i :11434`
+
+**Issue**: Slow or timeout errors
+- **Solution**: Ensure you have sufficient RAM (7B model needs ~8GB+)
+- Try a smaller model: `ollama pull mistral:7b-instruct-q4_0` (quantized, smaller)
+
+### Performance Notes
+
+- **First Run**: Model loading may take 30-60 seconds
+- **RAM Requirements**: Mistral 7B requires ~8GB RAM minimum
+- **GPU Acceleration**: If you have a compatible GPU, Ollama will use it automatically
+- **Network**: Model download happens only once (~4GB)
 
 ---
 
-## 📜 License & Citation
+## 🗄️ Database Setup
 
-Developed as part of  
+### AWS RDS PostgreSQL
+
+The application uses PostgreSQL on AWS RDS. Configure connection in `web_app/.env`:
+
+```bash
+DB_HOST=your-rds-endpoint.amazonaws.com
+DB_PORT=5432
+DB_NAME=your_database
+DB_USER=your_username
+DB_PASSWORD=your_password
+```
+
+### Local PostgreSQL (Development)
+
+1. **Create database**
+   ```sql
+   CREATE DATABASE clinical_ai;
+   ```
+
+2. **Run schema migration**
+   ```bash
+   cd database
+   python aws_database.py
+   ```
+
+3. **Load sample data** (optional)
+   ```bash
+   python create_mock_data.py
+   ```
+
+### Schema Files
+
+- `database/elec5620_schema_postgres_v1.sql` - Complete PostgreSQL schema
+- Includes: users, doctors, patients, medical_records, clinical_analysis_data, ai_approvals, quote_requests, etc.
+
+---
+
+## 👥 Demo Credentials
+
+### Default Password (All Users)
+```
+password123
+```
+
+### User Accounts
+
+| Role | Username | Description |
+|------|----------|-------------|
+| **Patient** | `patient1` | John Doe (MRN-001234) |
+| **Patient** | `patient2` | Jane Wilson (MRN-005678) |
+| **Patient** | `patient16` | Test patient |
+| **Doctor** | `dr.alice` | Dr. Alice Smith (Approved) |
+| **Doctor** | `dr.smith` | Cardiology specialist |
+| **Doctor** | `dr.jones` | Neurology specialist |
+| **Admin** | `admin` | System administrator |
+| **Admin** | `it.admin` | IT administrator |
+
+**Note**: 20+ mock doctors are available with various specializations. All use password `password123`.
+
+---
+
+## 📁 Project Structure
+
+```
+5620medai/
+│
+├── web_app/                    # Main Flask application
+│   ├── app.py                 # Flask routes and main application
+│   ├── models.py              # User models and in-memory storage
+│   ├── forms.py              # Flask-WTF forms (login, signup, insurance, clinical)
+│   ├── db_auth.py            # Database authentication utilities
+│   ├── rds_repository.py     # AWS RDS database operations
+│   ├── database_config.py    # SQLAlchemy database configuration
+│   │
+│   ├── clinical_analysis_processor.py  # Clinical pipeline orchestrator
+│   ├── doctor_recommender.py           # AI doctor recommendation
+│   ├── insurance_engine.py            # Insurance quote matching engine
+│   ├── insurance_models.py            # Insurance data models
+│   ├── insurance_utils.py             # Insurance utilities
+│   ├── ai_explainer.py                # Ollama LLM integration
+│   ├── financial_assistance.py        # Financial aid matching
+│   ├── approval_models.py             # Doctor review/approval models
+│   ├── patient_history_analyzer.py    # Patient history analysis
+│   │
+│   ├── UC2_models/            # Clinical AI pipeline modules
+│   │   ├── ocr/               # Optical Character Recognition
+│   │   ├── sectionizer/       # Document section segmentation
+│   │   ├── ner/              # Named Entity Recognition
+│   │   ├── linker/           # Entity linking (SNOMED, RxNorm)
+│   │   ├── fhir_mapper/      # FHIR R4 bundle generation
+│   │   ├── explain/          # Explanation generation
+│   │   └── safety/           # Safety checker
+│   │
+│   ├── templates/            # Jinja2 HTML templates
+│   │   ├── base.html        # Base layout
+│   │   ├── login.html       # Login page
+│   │   ├── signup.html      # User registration
+│   │   ├── dashboard_patient.html
+│   │   ├── dashboard_doctor.html
+│   │   ├── dashboard_admin.html
+│   │   ├── clinical_analysis_*.html  # Clinical analysis pages
+│   │   ├── insurance_*.html          # Insurance quote pages
+│   │   └── review_*.html             # Doctor review pages
+│   │
+│   └── static/               # Static assets
+│       └── css/
+│           └── style.css     # Custom styles
+│
+├── database/                 # Database scripts
+│   ├── elec5620_schema_postgres_v1.sql  # PostgreSQL schema
+│   ├── aws_database.py       # Schema migration script
+│   └── create_mock_data.py   # Sample data generator
+│
+├── ai_medical/               # Original AI pipeline (legacy)
+│   ├── ocr/
+│   ├── sectionizer/
+│   ├── ner/
+│   ├── linker/
+│   ├── fhir_mapper/
+│   ├── explain/
+│   └── safety/
+│
+├── requirements.txt          # Complete Python dependencies
+└── README.md                 # This file
+```
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create `web_app/.env`:
+
+```bash
+# Flask Configuration
+SECRET_KEY=your-secret-key-change-in-production
+FLASK_ENV=development
+FLASK_DEBUG=True
+
+# Database Configuration (AWS RDS)
+DB_HOST=your-rds-endpoint.amazonaws.com
+DB_PORT=5432
+DB_NAME=clinical_ai
+DB_USER=your_username
+DB_PASSWORD=your_password
+
+# Session Configuration
+SESSION_COOKIE_NAME=clinical_ai_session
+SESSION_COOKIE_SAMESITE=Lax
+
+# Optional: Ollama Configuration
+OLLAMA_BIN=ollama  # Path to ollama binary (default: 'ollama')
+```
+
+### Application Settings
+
+- **File Upload**: Maximum 16MB per file
+- **Session Duration**: 7 days (30 days with "Remember Me")
+- **Upload Storage**: `web_app/uploads/user_id_analysis_id/`
+
+---
+
+## 🎯 Use Cases Implemented
+
+### ✅ Use Case 1: AI-Assisted Clinical Record Analysis (Saahir Khan)
+- **Status**: ✅ Complete
+- **Features**: 8-stage pipeline, real-time progress, history management, file downloads
+- **Route**: `/clinical-analysis`
+
+### ✅ Use Case 2: Review AI Output & Approve (Thanh Le)
+- **Status**: ✅ Complete
+- **Features**: Doctor review workflow, approval decisions, review history
+- **Route**: `/review/pending`, `/review/<analysis_id>`
+
+### ✅ Use Case 3: Request Insurance Quote (Venkatesh Badri Narayanan)
+- **Status**: ✅ Complete
+- **Features**: AI-powered matching, 30+ insurance funds, cost breakdown, AI explanations
+- **Route**: `/insurance/quote`
+
+### ✅ Use Case 4: Financial Assistance with Loan Matching (Venkatesh Badri Narayanan)
+- **Status**: ✅ Commming soon
+- **Features**: Loan matching, financial profile analysis
+- **Route**: `/financial-assistance`
+
+### 🚧 Use Case 5: Patient History Documentation (Sarvadnya Kamble)
+- **Status**: 🚧 Coming Soon
+- **Note**: Marked as "Coming Soon" in doctor dashboard
+
+---
+
+## 🔐 Security Features
+
+- **Password Hashing**: Werkzeug secure password hashing
+- **Session Management**: Flask-Login with persistent sessions
+- **CSRF Protection**: Flask-WTF forms with CSRF tokens
+- **Role-Based Access Control**: Decorators for route protection
+- **Secure Cookies**: HTTPOnly, SameSite, Secure flags
+- **File Upload Validation**: Secure filename handling, file type checks
+- **Database Parameterization**: SQL injection prevention via psycopg2
+
+---
+
+## 🧠 AI Pipeline Integration
+
+### Pipeline Stages
+
+| Stage | Module | Description | Output |
+|-------|--------|-------------|--------|
+| 1 | OCR | Extract text from PDFs/images | `extracted_text.txt` |
+| 2 | Sectionizer | Segment into medical sections | `sections.json` |
+| 3 | NER | Extract clinical entities | `entities.json` |
+| 4 | Entity Linking | Map to medical ontologies | `linked_entities.json` |
+| 5 | FHIR Mapper | Generate FHIR R4 bundles | `fhir_bundle.json` |
+| 6 | Explanation | Patient-friendly summaries | `explanation.json` |
+| 7 | Safety Check | Detect red flags | `safety_report.json` |
+| 8 | Mistral LLM | AI-powered clinical analysis | `mistral_analysis.txt` |
+
+### AI Models Used
+
+- **SpaCy**: `en_core_sci_sm`, `en_ner_bc5cdr_md` (Clinical NER)
+- **Sentence Transformers**: SapBERT (Entity linking)
+- **Ollama**: `mistral:7b-instruct` (Explanations and clinical analysis)
+
+---
+
+## 🔌 API Endpoints
+
+### Authentication
+- `GET/POST /login` - User login
+- `GET/POST /signup` - User registration
+- `GET /logout` - User logout
+
+### Patient Routes
+- `GET /dashboard/patient` - Patient dashboard
+- `GET/POST /insurance/quote` - Request insurance quote
+- `GET /insurance/history` - Quote history
+- `GET /clinical-analysis` - Upload clinical document
+- `GET /clinical-analysis/history` - Analysis history
+- `GET /clinical-analysis/results/<analysis_id>` - View results
+- `GET /clinical-analysis/recommend-doctors/<analysis_id>` - Find doctors
+- `POST /clinical-analysis/request-review/<analysis_id>/<doctor_id>` - Request review
+
+### Doctor Routes
+- `GET /dashboard/doctor` - Doctor dashboard
+- `GET /review/pending` - Pending reviews
+- `GET /review/<analysis_id>` - Review analysis
+- `POST /review/<analysis_id>` - Submit review decision
+- `GET /review/history` - Review history
+- `GET /doctor/profile/<doctor_id>` - Doctor profile
+
+### Admin Routes
+- `GET /dashboard/admin` - Admin dashboard
+- `GET /admin/users` - User management
+- `GET /admin/view-doctor/<doctor_id>` - View doctor profile
+- `POST /admin/approve-doctor/<doctor_id>` - Approve doctor registration
+- `POST /admin/reject-doctor/<doctor_id>` - Reject doctor registration
+
+---
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+
+- [x] User authentication (login, signup, logout)
+- [x] Role-based access control
+- [x] Clinical document upload and processing
+- [x] Insurance quote generation
+- [x] Doctor review workflow
+- [x] File download/view functionality
+- [x] Database persistence
+- [x] Session management
+
+### Running Tests
+
+```bash
+# Install test dependencies (optional)
+pip install pytest pytest-flask
+
+# Run tests (when test suite is added)
+pytest tests/
+```
+
+---
+
+## 📊 Database Schema
+
+### Key Tables
+
+- **users** - User accounts (patients, doctors, admins)
+- **doctors** - Doctor-specific information (specialization, AHPRA, approval status)
+- **patients** - Patient-specific information
+- **medical_records** - Uploaded documents and metadata
+- **clinical_analysis_data** - Complete pipeline outputs (JSONB)
+- **ai_approvals** - Doctor review decisions
+- **quote_requests** - Insurance quote requests
+- **quote_recommendations** - Generated quotes and AI scores
+- **fhir_bundles** - FHIR R4 compliant medical data
+- **safety_flags** - Safety check results
+
+See `database/elec5620_schema_postgres_v1.sql` for complete schema.
+
+---
+
+## 🚧 Known Limitations & Coming Soon
+
+### Coming Soon Features
+- ❌ Patient History Documentation (Use Case 5) - Timeline and trends analysis
+- ❌ Insurance Quote Reviews - Doctor review of insurance quotes
+- ❌ Compare Quotes - Side-by-side quote comparison
+
+### Current Limitations
+- File size limit: 16MB per upload
+- OCR quality depends on document clarity
+- LLM explanations require Ollama installation
+- Some features may require database schema updates
+
+---
+
+## 🛠️ Development
+
+### Adding New Features
+
+1. **Create route** in `app.py`
+2. **Add form** in `forms.py` (if needed)
+3. **Create template** in `templates/`
+4. **Update database** via `database/aws_database.py` (if schema changes)
+5. **Add tests** (when test suite is established)
+
+### Code Style
+
+- Follow PEP 8
+- Use type hints where possible
+- Document functions with docstrings
+- Use meaningful variable names
+
+---
+
+## 📝 License & Credits
+
 **ELEC5620 – Medical AI & ML Engineering Project (2025)**  
 **University of Sydney – Group 7 (HACKERJEE)**  
-**Author:** *Saahir Khan*
 
-If used for academic or research purposes, please cite the associated  
-Elsevier SSRN publication on *AI-Driven Meeting and Clinical Management Tools*.
+### Team Members
+- **Saahir Khan** - Clinical Record Analysis (Use Case 2)
+- **Thanh Le** - Review & Approval System (Use Case 2)
+- **Venkatesh Badri Narayanan** - Insurance Quotes & Financial Assistance (Use Cases 3 & 4)
+- **Sarvadnya Kamble** - Patient History (Use Case 5 - Coming Soon)
+
+### Technologies
+- Flask 3.0.0
+- PostgreSQL (AWS RDS)
+- SpaCy, Sentence Transformers
+- Ollama (Mistral:7b-instruct)
+- Bootstrap 5
+- Chart.js
 
 ---
 
-## 🧾 Appendix
+## 📞 Support & Documentation
 
-- Each sub-folder contains an `__init__.py` for import readiness.  
-- Designed for offline execution and clinical transparency.  
-- Tested on multiple PDF formats; deterministic across runs.
+- **Main Documentation**: See `web_app/README.md` for detailed feature docs
+- **AI Pipeline**: See `ai_medical/README.md`
+- **Insurance Feature**: See `web_app/INSURANCE_QUOTE_FEATURE.md`
+- **Clinical Analysis**: See `web_app/CLINICAL_ANALYSIS_FEATURE.md`
 
 ---
 
-### 💬 Contact
+## ⚠️ Production Deployment Notes
 
-For collaboration or inquiries, reach out via academic channels:  
-**Saahir Khan – University of Sydney**
+**DO NOT deploy to production without:**
+
+1. ✅ Change all default passwords
+2. ✅ Set strong `SECRET_KEY` in environment
+3. ✅ Use HTTPS (set `SESSION_COOKIE_SECURE=True`)
+4. ✅ Configure AWS RDS with proper security groups
+5. ✅ Enable audit logging
+6. ✅ Add rate limiting
+7. ✅ Implement backup strategy
+8. ✅ Follow HIPAA compliance guidelines (if handling PHI)
+9. ✅ Enable CSRF protection (already implemented)
+10. ✅ Regular security updates
+
+---
+
+**Version**: 1.0.0  
+**Last Updated**: November 2025  
+**Status**: Active Development

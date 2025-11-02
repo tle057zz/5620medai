@@ -48,46 +48,6 @@
     </div>
 </div>
 
-<!-- Quick Stats -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-primary">
-            <div class="card-body text-center">
-                <i class="bi bi-file-earmark-medical display-4 text-primary"></i>
-                <h3 class="mt-2">{{ rds.stats.medical_reports if rds and rds.stats else 0 }}</h3>
-                <p class="text-muted mb-0">Medical Reports</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-success">
-            <div class="card-body text-center">
-                <i class="bi bi-capsule display-4 text-success"></i>
-                <h3 class="mt-2">{{ rds.stats.active_medications if rds and rds.stats else 0 }}</h3>
-                <p class="text-muted mb-0">Active Medications</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-warning">
-            <div class="card-body text-center">
-                <i class="bi bi-calendar-check display-4 text-warning"></i>
-                <h3 class="mt-2">{{ rds.stats.upcoming_appointments if rds and rds.stats else 0 }}</h3>
-                <p class="text-muted mb-0">Upcoming Appointments</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-info">
-            <div class="card-body text-center">
-                <i class="bi bi-shield-check display-4 text-info"></i>
-                <h3 class="mt-2">{{ rds.stats.insurance_quotes if rds and rds.stats else 0 }}</h3>
-                <p class="text-muted mb-0">Insurance Quotes</p>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- AI Features Row -->
 <div class="row g-4 mb-4">
     <!-- Insurance Quote Service (First) -->

@@ -2790,6 +2790,16 @@ def review_history():
         else:
             status_value = 'needs_revision'
         
+        # Get timestamp - ensure it's a datetime object
+        timestamp = review.get('signed_at') or review.get('created_at')
+        # If timestamp is a string, parse it; otherwise use as-is (datetime from DB)
+        if timestamp and isinstance(timestamp, str):
+            try:
+                from dateutil.parser import parse
+                timestamp = parse(timestamp)
+            except:
+                timestamp = None
+        
         # Create a simple object that mimics ApprovalDecision for the template
         decision_obj = type('Decision', (), {
             'decision_id': f"DEC-{review['approval_id']}",
@@ -2797,7 +2807,7 @@ def review_history():
             'reviewer_name': review['doctor_name'],
             'reviewer_id': review['doctor_id'],
             'status': type('Status', (), {'value': status_value})(),
-            'timestamp': review['signed_at'] or review['created_at'],
+            'timestamp': timestamp,  # Should be datetime object from DB
             'notes': review['notes'] or '',
             'safety_overrides': [],  # Not stored in DB yet
             'released_to_patient': decision_value == 'approved',

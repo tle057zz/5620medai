@@ -1882,12 +1882,11 @@ def get_review_history_from_rds(doctor_user_id: int = None, limit: int = 1000) -
                     mr.file_hash AS analysis_id,
                     mr.patient_id,
                     COALESCE(u.name, u.username, 'Unknown Doctor') AS doctor_name,
-                    COALESCE(p.name, pu.name, pu.username, 'Unknown Patient') AS patient_name
+                    COALESCE(pu.name, pu.username, 'Unknown Patient') AS patient_name
                 FROM ai_approvals aa
                 JOIN medical_records mr ON mr.id = aa.medical_record_id
                 JOIN doctors d ON d.user_id = aa.doctor_id
                 JOIN users u ON u.id = d.user_id
-                LEFT JOIN patients p ON p.user_id = mr.patient_id
                 LEFT JOIN users pu ON pu.id = mr.patient_id
                 WHERE aa.signed_at IS NOT NULL
             """
