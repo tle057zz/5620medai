@@ -850,22 +850,12 @@ def request_insurance_quote():
                         # Default to medical_report for insurance quote documents
                         inferred_doc_type = 'medical_report'
                     
-                    # Save medical record to RDS
-                    try:
-                        if os.environ.get('USE_RDS_LOGIN', 'true').lower() in {'1','true','yes'}:
-                            patient_user_id = int(str(current_user.id))
-                            record_id = save_medical_record_to_rds(
-                                patient_user_id=patient_user_id,
-                                file_hash=file_hash,
-                                document_type=inferred_doc_type,
-                                size_mb=file_size_mb,
-                                status='Processed',
-                                uploaded_at=datetime.now()
-                            )
-                            if record_id:
-                                print(f"[RDS] Saved medical record from insurance quote: record_id={record_id}")
-                    except Exception as e:
-                        print(f"[RDS] Failed to save medical record from insurance quote: {e}")
+                    # NOTE: Do NOT save medical record to RDS for insurance quote processing
+                    # Insurance quote documents are only processed to extract data for pre-filling the form.
+                    # They should NOT appear in clinical analysis history. Only full clinical analyses
+                    # (via /clinical-analysis route) should be saved to medical_records table.
+                    # Removed save_medical_record_to_rds call to prevent insurance quote uploads
+                    # from appearing in clinical analysis history.
                 else:
                     flash(f"⚠ Document processing failed: {doc_result.get('error')}", 'warning')
                 

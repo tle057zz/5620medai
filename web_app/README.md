@@ -2,6 +2,9 @@
 
 Flask-based web interface for the Clinical AI Medical Document Intelligence Pipeline.
 
+https://uni-team-p5cfc6he.atlassian.net/jira/software/projects/SCRUM/boards/1
+
+
 ## 📋 Features
 
 ### ✅ Implemented (Phase 1)
